@@ -6,7 +6,7 @@ import (
 )
 
 type Items interface {
-	Use(string) error
+	Use(*Player, Item)
 }
 
 type Item struct {
@@ -15,8 +15,32 @@ type Item struct {
 	PutOnable bool
 }
 
-func (item Item) Use(anotherItem string) error {
-	return nil
+func (item Item) Use(p *Player, anotherItem Item) {
+
+	var canUse bool
+	for _, forItem := range usability[item.Name] {
+		if forItem == anotherItem.Name {
+			canUse = true
+		}
+	}
+	if !canUse {
+		fmt.Println("не к чему применить")
+		return
+	}
+
+	result := events[item.Name+"+"+anotherItem.Name]
+	fmt.Println(result)
+
+	if result == "дверь открыта" {
+		for _, out := range p.Room.Outs {
+			if rooms[out].Closed {
+				if entry, ok := rooms[out]; ok {
+					entry.Closed = false
+					rooms[out] = entry
+				}
+			}
+		}
+	}
 }
 
 type Room struct {
@@ -183,30 +207,7 @@ func (p *Player) UseItem(item Items, anotherItem Items) { // нет предме
 				return
 			}
 
-			var canUse bool
-			for _, forItem := range usability[tmpItem.Name] {
-				if forItem == tmpAnotherItem.Name {
-					canUse = true
-				}
-			}
-			if !canUse {
-				fmt.Println("не к чему применить")
-				return
-			}
-
-			result := events[tmpItem.Name+"+"+tmpAnotherItem.Name]
-			fmt.Println(result)
-
-			if result == "дверь открыта" {
-				for _, out := range p.Room.Outs {
-					if rooms[out].Closed {
-						if entry, ok := rooms[out]; ok {
-							entry.Closed = false
-							rooms[out] = entry
-						}
-					}
-				}
-			}
+			item.Use(p, tmpAnotherItem)
 		}
 	}
 
