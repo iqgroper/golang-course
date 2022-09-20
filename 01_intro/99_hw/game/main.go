@@ -58,8 +58,6 @@ type Player struct {
 
 func (p *Player) LookAround() {
 	fmt.Print("ты находишься в ", p.Room.Name, ",")
-	// if p.Room.Items[] настроить удаление позиций в мапе при отсутствии предметов
-
 	placeNum := 1
 	for place, items := range p.Room.Items {
 		fmt.Print(" ", place, ":")
@@ -111,7 +109,6 @@ func (p *Player) Go(room Room) {
 	//print something
 }
 
-// if p.Room.Items[] настроить удаление позиций в мапе при отсутствии предметов
 func (p *Player) TakeItem(item Items) {
 	if !p.Backpack {
 		fmt.Print("некуда класть\n")
@@ -139,7 +136,13 @@ func (p *Player) TakeItem(item Items) {
 	if tmpItem, ok := item.(Item); ok {
 		p.Inventory = append(p.Inventory, tmpItem)
 		itemSlice := rooms[p.Room.Name].Items[itemPlace]
-		rooms[p.Room.Name].Items[itemPlace] = append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
+		newItemSlice := append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
+
+		if len(newItemSlice) == 0 {
+			delete(rooms[p.Room.Name].Items, itemPlace)
+		} else {
+			rooms[p.Room.Name].Items[itemPlace] = newItemSlice
+		}
 		fmt.Println("предмет добавлен в инвентарь: ", tmpItem.Name)
 
 	} else {
@@ -176,10 +179,17 @@ func (p *Player) PutOnClothes(item Items) {
 
 		if tmpItem.Name == "рюкзак" {
 			p.Backpack = true
+			tasks["собрать рюкзак"] = true
 		}
 
 		itemSlice := rooms[p.Room.Name].Items[itemPlace]
-		rooms[p.Room.Name].Items[itemPlace] = append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
+		newItemSlice := append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
+
+		if len(newItemSlice) == 0 {
+			delete(rooms[p.Room.Name].Items, itemPlace)
+		} else {
+			rooms[p.Room.Name].Items[itemPlace] = newItemSlice
+		}
 
 		fmt.Println("вы надели: ", tmpItem.Name)
 	} else {
@@ -216,6 +226,10 @@ func (p *Player) UseItem(item Items, anotherItem Items) { // нет предме
 var rooms = make(map[string]Room, 3)
 var startingRoom = "кухня"
 var player = Player{}
+var tasks = map[string]bool{
+	"собрать рюкзак": false,
+	"идти в универ":  false,
+}
 var usability = map[string][]string{
 	"ключи": {"дверь"},
 }
@@ -249,6 +263,7 @@ func main() {
 	handleCommand("надеть рюкзак")
 	handleCommand("взять ключи")
 	handleCommand("взять конспекты")
+	handleCommand("осмотреться")
 	handleCommand("идти коридор")
 	handleCommand("применить ключи дверь")
 	handleCommand("идти улица")
