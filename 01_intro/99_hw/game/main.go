@@ -24,12 +24,12 @@ func (item Item) Use(p *Player, anotherItem Item) {
 		}
 	}
 	if !canUse {
-		fmt.Println("не к чему применить")
+		fmt.Print("не к чему применить")
 		return
 	}
 
 	result := events[item.Name+"+"+anotherItem.Name]
-	fmt.Println(result)
+	fmt.Print(result)
 
 	if result == "дверь открыта" {
 		for _, out := range p.Room.Outs {
@@ -57,24 +57,43 @@ type Player struct {
 }
 
 func (p *Player) LookAround() {
-	fmt.Print("ты находишься в ", p.Room.Name, ",")
-	placeNum := 1
-	for place, items := range p.Room.Items {
-		fmt.Print(" ", place, ":")
-		for i, item := range items {
-			fmt.Print(" ", item.Name)
-			if i+1 < len(items) {
-				fmt.Print(",")
-			} else if placeNum != len(p.Room.Items) {
-				fmt.Print(",")
-			} else {
-				fmt.Print("")
 
-			}
-		}
-		placeNum++
+	if p.Room.Name == rooms["кухня"].Name {
+		fmt.Print("ты находишься на кухне, ")
 	}
 
+	if len(p.Room.Items) != 0 {
+		placeNum := 1
+		for place, items := range p.Room.Items {
+			fmt.Print(place, ": ")
+			for i, item := range items {
+				fmt.Print(item.Name)
+				if i+1 < len(items) {
+					fmt.Print(", ")
+				} else if placeNum != len(p.Room.Items) {
+					fmt.Print(", ")
+				} else {
+					fmt.Print("")
+
+				}
+			}
+			placeNum++
+		}
+	} else {
+		fmt.Print("пустая комната")
+	}
+
+	keys := make([]string, 0, len(tasks))
+	for k, val := range tasks {
+		if !val {
+			keys = append(keys, k)
+		}
+	}
+	toDo := strings.Join(keys, " и ")
+
+	if p.Room.Name == rooms["кухня"].Name {
+		fmt.Print(", надо " + toDo)
+	}
 	fmt.Print(". можно пройти - ")
 
 	for i, out := range p.Room.Outs {
@@ -82,7 +101,7 @@ func (p *Player) LookAround() {
 		if i+1 < len(p.Room.Outs) {
 			fmt.Print(",")
 		} else {
-			fmt.Print("\n")
+			fmt.Print("")
 		}
 	}
 }
@@ -97,21 +116,42 @@ func (p *Player) Go(room Room) {
 	}
 
 	if !canReach {
-		fmt.Println("нет пути в ", room.Name)
+		fmt.Print("нет пути в ", room.Name)
 		return
 	}
 
 	if room.Closed {
-		fmt.Println("дверь закрыта")
+		fmt.Print("дверь закрыта")
 		return
 	}
 	p.Room = rooms[room.Name]
-	//print something
+
+	switch p.Room.Name {
+	case "коридор":
+		fmt.Print("ничего интересного.")
+	case "комната":
+		fmt.Print("ты в своей комнате.")
+	case "кухня":
+		fmt.Print("кухня, ничего интересного.")
+	case "улица":
+		fmt.Print("на улице весна.")
+	}
+
+	fmt.Print(" можно пройти - ")
+	for i, out := range p.Room.Outs {
+		fmt.Print(out)
+		if i+1 < len(p.Room.Outs) {
+			fmt.Print(", ")
+		} else {
+			fmt.Print("")
+		}
+	}
+
 }
 
 func (p *Player) TakeItem(item Items) {
 	if !p.Backpack {
-		fmt.Print("некуда класть\n")
+		fmt.Print("некуда класть")
 		return
 	}
 
@@ -129,7 +169,7 @@ func (p *Player) TakeItem(item Items) {
 	}
 
 	if !itemPresent {
-		fmt.Print("нет такого\n")
+		fmt.Print("нет такого")
 		return
 	}
 
@@ -143,7 +183,7 @@ func (p *Player) TakeItem(item Items) {
 		} else {
 			rooms[p.Room.Name].Items[itemPlace] = newItemSlice
 		}
-		fmt.Println("предмет добавлен в инвентарь: ", tmpItem.Name)
+		fmt.Print("предмет добавлен в инвентарь: ", tmpItem.Name)
 
 	} else {
 		fmt.Print("невозможное действие")
@@ -167,7 +207,7 @@ func (p *Player) PutOnClothes(item Items) {
 	}
 
 	if !itemPresent {
-		fmt.Print("нет такого\n")
+		fmt.Print("нет такого")
 		return
 	}
 
@@ -191,18 +231,18 @@ func (p *Player) PutOnClothes(item Items) {
 			rooms[p.Room.Name].Items[itemPlace] = newItemSlice
 		}
 
-		fmt.Println("вы надели: ", tmpItem.Name)
+		fmt.Print("вы надели: ", tmpItem.Name)
 	} else {
 		fmt.Print("невозможное действие")
 		return
 	}
 }
 
-func (p *Player) UseItem(item Items, anotherItem Items) { // нет предмета, не к чему применить
+func (p *Player) UseItem(item Items, anotherItem Items) {
 	if tmpItem, ok1 := item.(Item); ok1 {
 		if tmpAnotherItem, ok2 := anotherItem.(Item); ok2 {
 			if !tmpItem.Usable {
-				fmt.Println("Невозможно применить")
+				fmt.Print("Невозможно применить")
 				return
 			}
 
@@ -213,7 +253,7 @@ func (p *Player) UseItem(item Items, anotherItem Items) { // нет предме
 				}
 			}
 			if !itemPresent {
-				fmt.Println("нет предмета в инвентаре - ", tmpItem.Name)
+				fmt.Print("нет предмета в инвентаре - ", tmpItem.Name)
 				return
 			}
 
@@ -249,25 +289,42 @@ var itemsGlobal = map[string]Item{
 func main() {
 	initGame()
 
-	// player.LookAround()
-	// player.Backpack = true
-	// player.TakeItem(Item{"конспекты", true, false})
-	// player.TakeItem(Item{"ключи", true, false})
-	// player.PutOnClothes(Item{"рюкзак", false, true})
-	// player.LookAround()
+	// handleCommand("осмотреться")
+	// handleCommand("идти коридор")
+	// handleCommand("идти комната")
+	// handleCommand("осмотреться")
+	// handleCommand("надеть рюкзак")
+	// handleCommand("взять ключи")
+	// handleCommand("взять конспекты")
+	// handleCommand("идти коридор")
+	// handleCommand("применить ключи дверь")
+	// handleCommand("идти улица")
 
 	handleCommand("осмотреться")
+	handleCommand("завтракать")
+	handleCommand("идти комната")
 	handleCommand("идти коридор")
+	handleCommand("применить ключи дверь")
 	handleCommand("идти комната")
 	handleCommand("осмотреться")
-	handleCommand("надеть рюкзак")
 	handleCommand("взять ключи")
+	handleCommand("надеть рюкзак")
+	handleCommand("осмотреться")
+	handleCommand("взять ключи")
+	handleCommand("взять телефон")
+	handleCommand("взять ключи")
+	handleCommand("осмотреться")
 	handleCommand("взять конспекты")
 	handleCommand("осмотреться")
 	handleCommand("идти коридор")
-	handleCommand("применить ключи дверь")
-	handleCommand("идти улица")
+	handleCommand("идти кухня")
 	handleCommand("осмотреться")
+	handleCommand("идти коридор")
+	handleCommand("идти улица")
+	handleCommand("применить ключи дверь")
+	handleCommand("применить телефон шкаф")
+	handleCommand("применить ключи шкаф")
+	handleCommand("идти улица")
 
 	// in := bufio.NewScanner(os.Stdin)
 	// for in.Scan() {
@@ -329,6 +386,8 @@ func handleCommand(command string) string {
 		player.PutOnClothes(itemsGlobal[words[1]])
 	case "применить":
 		player.UseItem(itemsGlobal[words[1]], itemsGlobal[words[2]])
+	default:
+		return "неизвестная команда"
 	}
 
 	return "not implemented"
