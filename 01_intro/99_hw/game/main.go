@@ -44,10 +44,12 @@ func (item Item) Use(p *Player, anotherItem Item) {
 }
 
 type Room struct {
-	Name   string
-	Items  map[string][]Item
-	Outs   []string
-	Closed bool
+	Name             string
+	Items            map[string][]Item
+	Outs             []string
+	Closed           bool
+	GreetingPhrase   string
+	LookAroundPhrase string
 }
 
 type Player struct {
@@ -58,9 +60,7 @@ type Player struct {
 
 func (p *Player) LookAround() {
 
-	if p.Room.Name == rooms["кухня"].Name {
-		fmt.Fprint(answer, "ты находишься на кухне, ")
-	}
+	fmt.Fprint(answer, p.Room.LookAroundPhrase)
 
 	if len(p.Room.Items) != 0 {
 		placeNum := 1
@@ -91,7 +91,7 @@ func (p *Player) LookAround() {
 	}
 	toDo := strings.Join(keys, " и ")
 
-	if p.Room.Name == rooms["кухня"].Name {
+	if p.Room.Name == rooms[startingRoom].Name {
 		fmt.Fprint(answer, ", надо "+toDo)
 	}
 	fmt.Fprint(answer, ". можно пройти - ")
@@ -126,16 +126,7 @@ func (p *Player) Go(room Room) {
 	}
 	p.Room = rooms[room.Name]
 
-	switch p.Room.Name {
-	case "коридор":
-		fmt.Fprint(answer, "ничего интересного.")
-	case "комната":
-		fmt.Fprint(answer, "ты в своей комнате.")
-	case "кухня":
-		fmt.Fprint(answer, "кухня, ничего интересного.")
-	case "улица":
-		fmt.Fprint(answer, "на улице весна.")
-	}
+	fmt.Fprint(answer, room.GreetingPhrase)
 
 	fmt.Fprint(answer, " можно пройти - ")
 	for i, out := range p.Room.Outs {
@@ -303,12 +294,15 @@ func initGame() {
 		Items: map[string][]Item{
 			"на столе": {itemsGlobal["чай"]},
 		},
-		Outs: []string{"коридор"},
+		Outs:             []string{"коридор"},
+		GreetingPhrase:   "кухня, ничего интересного.",
+		LookAroundPhrase: "ты находишься на кухне, ",
 	}
 
 	var corridor = Room{
-		Name: "коридор",
-		Outs: []string{"кухня", "комната", "улица"},
+		Name:           "коридор",
+		Outs:           []string{"кухня", "комната", "улица"},
+		GreetingPhrase: "ничего интересного.",
 	}
 
 	var myRoom = Room{
@@ -317,13 +311,15 @@ func initGame() {
 			"на столе": {itemsGlobal["ключи"], itemsGlobal["конспекты"]},
 			"на стуле": {itemsGlobal["рюкзак"]},
 		},
-		Outs: []string{"коридор"},
+		Outs:           []string{"коридор"},
+		GreetingPhrase: "ты в своей комнате.",
 	}
 
 	var street = Room{
-		Name:   "улица",
-		Outs:   []string{"домой"},
-		Closed: true,
+		Name:           "улица",
+		Outs:           []string{"домой"},
+		Closed:         true,
+		GreetingPhrase: "на улице весна.",
 	}
 
 	rooms["кухня"] = kitchen
