@@ -68,13 +68,13 @@ func (p *Player) LookAround() {
 			fmt.Fprint(answer, place, ": ")
 			for i, item := range items {
 				fmt.Fprint(answer, item.Name)
-				if i+1 < len(items) {
+				switch {
+				case i+1 < len(items):
 					fmt.Fprint(answer, ", ")
-				} else if placeNum != len(p.Room.Items) {
+				case placeNum != len(p.Room.Items):
 					fmt.Fprint(answer, ", ")
-				} else {
+				default:
 					fmt.Fprint(answer, "")
-
 				}
 			}
 			placeNum++
@@ -176,12 +176,12 @@ func (p *Player) TakeItem(item Items) {
 	if tmpItem, ok := item.(Item); ok {
 		p.Inventory = append(p.Inventory, tmpItem)
 		itemSlice := rooms[p.Room.Name].Items[itemPlace]
-		newItemSlice := append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
+		itemSlice = append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
 
-		if len(newItemSlice) == 0 {
+		if len(itemSlice) == 0 {
 			delete(rooms[p.Room.Name].Items, itemPlace)
 		} else {
-			rooms[p.Room.Name].Items[itemPlace] = newItemSlice
+			rooms[p.Room.Name].Items[itemPlace] = itemSlice
 		}
 		fmt.Fprint(answer, "предмет добавлен в инвентарь: ", tmpItem.Name)
 
@@ -192,7 +192,6 @@ func (p *Player) TakeItem(item Items) {
 }
 
 func (p *Player) PutOnClothes(item Items) {
-
 	var itemPresent bool
 	var itemPlace string
 	var itemIndex int
@@ -223,12 +222,12 @@ func (p *Player) PutOnClothes(item Items) {
 		}
 
 		itemSlice := rooms[p.Room.Name].Items[itemPlace]
-		newItemSlice := append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
+		itemSlice = append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
 
-		if len(newItemSlice) == 0 {
+		if len(itemSlice) == 0 {
 			delete(rooms[p.Room.Name].Items, itemPlace)
 		} else {
-			rooms[p.Room.Name].Items[itemPlace] = newItemSlice
+			rooms[p.Room.Name].Items[itemPlace] = itemSlice
 		}
 
 		fmt.Fprint(answer, "вы надели: ", tmpItem.Name)
@@ -299,7 +298,7 @@ func initGame() {
 		"телефон":   {"телефон", true, false},
 	}
 
-	var kitchen Room = Room{
+	var kitchen = Room{
 		Name: "кухня",
 		Items: map[string][]Item{
 			"на столе": {itemsGlobal["чай"]},
@@ -307,12 +306,12 @@ func initGame() {
 		Outs: []string{"коридор"},
 	}
 
-	var corridor Room = Room{
+	var corridor = Room{
 		Name: "коридор",
 		Outs: []string{"кухня", "комната", "улица"},
 	}
 
-	var myRoom Room = Room{
+	var myRoom = Room{
 		Name: "комната",
 		Items: map[string][]Item{
 			"на столе": {itemsGlobal["ключи"], itemsGlobal["конспекты"]},
@@ -321,7 +320,7 @@ func initGame() {
 		Outs: []string{"коридор"},
 	}
 
-	var street Room = Room{
+	var street = Room{
 		Name:   "улица",
 		Outs:   []string{"домой"},
 		Closed: true,
