@@ -24,12 +24,12 @@ func (item Item) Use(p *Player, anotherItem Item) {
 		}
 	}
 	if !canUse {
-		fmt.Print("не к чему применить")
+		fmt.Fprint(answer, "не к чему применить")
 		return
 	}
 
 	result := events[item.Name+"+"+anotherItem.Name]
-	fmt.Print(result)
+	fmt.Fprint(answer, result)
 
 	if result == "дверь открыта" {
 		for _, out := range p.Room.Outs {
@@ -59,28 +59,28 @@ type Player struct {
 func (p *Player) LookAround() {
 
 	if p.Room.Name == rooms["кухня"].Name {
-		fmt.Print("ты находишься на кухне, ")
+		fmt.Fprint(answer, "ты находишься на кухне, ")
 	}
 
 	if len(p.Room.Items) != 0 {
 		placeNum := 1
 		for place, items := range p.Room.Items {
-			fmt.Print(place, ": ")
+			fmt.Fprint(answer, place, ": ")
 			for i, item := range items {
-				fmt.Print(item.Name)
+				fmt.Fprint(answer, item.Name)
 				if i+1 < len(items) {
-					fmt.Print(", ")
+					fmt.Fprint(answer, ", ")
 				} else if placeNum != len(p.Room.Items) {
-					fmt.Print(", ")
+					fmt.Fprint(answer, ", ")
 				} else {
-					fmt.Print("")
+					fmt.Fprint(answer, "")
 
 				}
 			}
 			placeNum++
 		}
 	} else {
-		fmt.Print("пустая комната")
+		fmt.Fprint(answer, "пустая комната")
 	}
 
 	keys := make([]string, 0, len(tasks))
@@ -92,16 +92,16 @@ func (p *Player) LookAround() {
 	toDo := strings.Join(keys, " и ")
 
 	if p.Room.Name == rooms["кухня"].Name {
-		fmt.Print(", надо " + toDo)
+		fmt.Fprint(answer, ", надо "+toDo)
 	}
-	fmt.Print(". можно пройти - ")
+	fmt.Fprint(answer, ". можно пройти - ")
 
 	for i, out := range p.Room.Outs {
-		fmt.Print(out)
+		fmt.Fprint(answer, out)
 		if i+1 < len(p.Room.Outs) {
-			fmt.Print(",")
+			fmt.Fprint(answer, ",")
 		} else {
-			fmt.Print("")
+			fmt.Fprint(answer, "")
 		}
 	}
 }
@@ -116,34 +116,34 @@ func (p *Player) Go(room Room) {
 	}
 
 	if !canReach {
-		fmt.Print("нет пути в ", room.Name)
+		fmt.Fprint(answer, "нет пути в ", room.Name)
 		return
 	}
 
 	if room.Closed {
-		fmt.Print("дверь закрыта")
+		fmt.Fprint(answer, "дверь закрыта")
 		return
 	}
 	p.Room = rooms[room.Name]
 
 	switch p.Room.Name {
 	case "коридор":
-		fmt.Print("ничего интересного.")
+		fmt.Fprint(answer, "ничего интересного.")
 	case "комната":
-		fmt.Print("ты в своей комнате.")
+		fmt.Fprint(answer, "ты в своей комнате.")
 	case "кухня":
-		fmt.Print("кухня, ничего интересного.")
+		fmt.Fprint(answer, "кухня, ничего интересного.")
 	case "улица":
-		fmt.Print("на улице весна.")
+		fmt.Fprint(answer, "на улице весна.")
 	}
 
-	fmt.Print(" можно пройти - ")
+	fmt.Fprint(answer, " можно пройти - ")
 	for i, out := range p.Room.Outs {
-		fmt.Print(out)
+		fmt.Fprint(answer, out)
 		if i+1 < len(p.Room.Outs) {
-			fmt.Print(", ")
+			fmt.Fprint(answer, ", ")
 		} else {
-			fmt.Print("")
+			fmt.Fprint(answer, "")
 		}
 	}
 
@@ -151,7 +151,7 @@ func (p *Player) Go(room Room) {
 
 func (p *Player) TakeItem(item Items) {
 	if !p.Backpack {
-		fmt.Print("некуда класть")
+		fmt.Fprint(answer, "некуда класть")
 		return
 	}
 
@@ -169,7 +169,7 @@ func (p *Player) TakeItem(item Items) {
 	}
 
 	if !itemPresent {
-		fmt.Print("нет такого")
+		fmt.Fprint(answer, "нет такого")
 		return
 	}
 
@@ -183,10 +183,10 @@ func (p *Player) TakeItem(item Items) {
 		} else {
 			rooms[p.Room.Name].Items[itemPlace] = newItemSlice
 		}
-		fmt.Print("предмет добавлен в инвентарь: ", tmpItem.Name)
+		fmt.Fprint(answer, "предмет добавлен в инвентарь: ", tmpItem.Name)
 
 	} else {
-		fmt.Print("невозможное действие")
+		fmt.Fprint(answer, "невозможное действие")
 	}
 
 }
@@ -207,13 +207,13 @@ func (p *Player) PutOnClothes(item Items) {
 	}
 
 	if !itemPresent {
-		fmt.Print("нет такого")
+		fmt.Fprint(answer, "нет такого")
 		return
 	}
 
 	if tmpItem, ok := item.(Item); ok {
 		if !tmpItem.PutOnable {
-			fmt.Print("невозможное действие")
+			fmt.Fprint(answer, "невозможное действие")
 			return
 		}
 
@@ -231,9 +231,9 @@ func (p *Player) PutOnClothes(item Items) {
 			rooms[p.Room.Name].Items[itemPlace] = newItemSlice
 		}
 
-		fmt.Print("вы надели: ", tmpItem.Name)
+		fmt.Fprint(answer, "вы надели: ", tmpItem.Name)
 	} else {
-		fmt.Print("невозможное действие")
+		fmt.Fprint(answer, "невозможное действие")
 		return
 	}
 }
@@ -242,7 +242,7 @@ func (p *Player) UseItem(item Items, anotherItem Items) {
 	if tmpItem, ok1 := item.(Item); ok1 {
 		if tmpAnotherItem, ok2 := anotherItem.(Item); ok2 {
 			if !tmpItem.Usable {
-				fmt.Print("Невозможно применить")
+				fmt.Fprint(answer, "Невозможно применить")
 				return
 			}
 
@@ -253,7 +253,7 @@ func (p *Player) UseItem(item Items, anotherItem Items) {
 				}
 			}
 			if !itemPresent {
-				fmt.Print("нет предмета в инвентаре - ", tmpItem.Name)
+				fmt.Fprint(answer, "нет предмета в инвентаре - ", tmpItem.Name)
 				return
 			}
 
@@ -263,77 +263,41 @@ func (p *Player) UseItem(item Items, anotherItem Items) {
 
 }
 
+var answer = new(strings.Builder)
 var rooms = make(map[string]Room, 3)
 var startingRoom = "кухня"
-var player = Player{}
-var tasks = map[string]bool{
-	"собрать рюкзак": false,
-	"идти в универ":  false,
-}
-var usability = map[string][]string{
-	"ключи": {"дверь"},
-}
-var events = map[string]string{
-	"ключи+дверь": "дверь открыта",
-}
-var itemsGlobal = map[string]Item{
-	"чай":       {"чай", true, false},
-	"ключи":     {"ключи", true, false},
-	"конспекты": {"конспекты", true, false},
-	"рюкзак":    {"рюкзак", false, true},
-	"дверь":     {"дверь", false, false},
-	"шкаф":      {"шкаф", false, false},
-	"телефон":   {"телефон", true, false},
-}
+var player Player
+var tasks map[string]bool
+var usability map[string][]string
+var events map[string]string
+var itemsGlobal map[string]Item
 
 func main() {
-	initGame()
-
-	// handleCommand("осмотреться")
-	// handleCommand("идти коридор")
-	// handleCommand("идти комната")
-	// handleCommand("осмотреться")
-	// handleCommand("надеть рюкзак")
-	// handleCommand("взять ключи")
-	// handleCommand("взять конспекты")
-	// handleCommand("идти коридор")
-	// handleCommand("применить ключи дверь")
-	// handleCommand("идти улица")
-
-	handleCommand("осмотреться")
-	// handleCommand("завтракать")
-	// handleCommand("идти комната")
-	// handleCommand("идти коридор")
-	// handleCommand("применить ключи дверь")
-	// handleCommand("идти комната")
-	// handleCommand("осмотреться")
-	// handleCommand("взять ключи")
-	// handleCommand("надеть рюкзак")
-	// handleCommand("осмотреться")
-	// handleCommand("взять ключи")
-	// handleCommand("взять телефон")
-	// handleCommand("взять ключи")
-	// handleCommand("осмотреться")
-	// handleCommand("взять конспекты")
-	// handleCommand("осмотреться")
-	// handleCommand("идти коридор")
-	// handleCommand("идти кухня")
-	// handleCommand("осмотреться")
-	// handleCommand("идти коридор")
-	// handleCommand("идти улица")
-	// handleCommand("применить ключи дверь")
-	// handleCommand("применить телефон шкаф")
-	// handleCommand("применить ключи шкаф")
-	// handleCommand("идти улица")
-
-	// in := bufio.NewScanner(os.Stdin)
-	// for in.Scan() {
-	// 	txt := in.Text()
-	// 	fmt.Println(txt)
-	// }
 }
 
-func initGame() { // add var rooms and player emptiness check
+func initGame() {
+
+	startingRoom = "кухня"
+	player = Player{}
+	tasks = map[string]bool{
+		"собрать рюкзак": false,
+		"идти в универ":  false,
+	}
+	usability = map[string][]string{
+		"ключи": {"дверь"},
+	}
+	events = map[string]string{
+		"ключи+дверь": "дверь открыта",
+	}
+	itemsGlobal = map[string]Item{
+		"чай":       {"чай", true, false},
+		"ключи":     {"ключи", true, false},
+		"конспекты": {"конспекты", true, false},
+		"рюкзак":    {"рюкзак", false, true},
+		"дверь":     {"дверь", false, false},
+		"шкаф":      {"шкаф", false, false},
+		"телефон":   {"телефон", true, false},
+	}
 
 	var kitchen Room = Room{
 		Name: "кухня",
@@ -390,5 +354,7 @@ func handleCommand(command string) string {
 		return "неизвестная команда"
 	}
 
-	return "not implemented"
+	toReturn := answer.String()
+	answer.Reset()
+	return toReturn
 }
