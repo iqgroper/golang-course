@@ -18,7 +18,7 @@ type Item struct {
 func (item Item) Use(p *Player, anotherItem Item) {
 
 	var canUse bool
-	for _, forItem := range usability[item.Name] {
+	for _, forItem := range world.Usability[item.Name] {
 		if forItem == anotherItem.Name {
 			canUse = true
 		}
@@ -28,15 +28,15 @@ func (item Item) Use(p *Player, anotherItem Item) {
 		return
 	}
 
-	result := events[item.Name+"+"+anotherItem.Name]
+	result := world.Events[item.Name+"+"+anotherItem.Name]
 	fmt.Fprint(answer, result)
 
 	if result == "дверь открыта" {
 		for _, out := range p.Room.Outs {
-			if rooms[out].Closed {
-				if entry, ok := rooms[out]; ok {
+			if world.Rooms[out].Closed {
+				if entry, ok := world.Rooms[out]; ok {
 					entry.Closed = false
-					rooms[out] = entry
+					world.Rooms[out] = entry
 				}
 			}
 		}
@@ -83,15 +83,15 @@ func (p *Player) LookAround() {
 		fmt.Fprint(answer, "пустая комната")
 	}
 
-	keys := make([]string, 0, len(tasks))
-	for k, val := range tasks {
+	keys := make([]string, 0, len(world.Tasks))
+	for k, val := range world.Tasks {
 		if !val {
 			keys = append(keys, k)
 		}
 	}
 	toDo := strings.Join(keys, " и ")
 
-	if p.Room.Name == rooms[startingRoom].Name {
+	if p.Room.Name == world.Rooms[world.StartingRoom].Name {
 		fmt.Fprint(answer, ", надо "+toDo)
 	}
 	fmt.Fprint(answer, ". можно пройти - ")
@@ -124,7 +124,7 @@ func (p *Player) Go(room Room) {
 		fmt.Fprint(answer, "дверь закрыта")
 		return
 	}
-	p.Room = rooms[room.Name]
+	p.Room = world.Rooms[room.Name]
 
 	fmt.Fprint(answer, room.GreetingPhrase)
 
@@ -166,13 +166,13 @@ func (p *Player) TakeItem(item Items) {
 
 	if tmpItem, ok := item.(Item); ok {
 		p.Inventory = append(p.Inventory, tmpItem)
-		itemSlice := rooms[p.Room.Name].Items[itemPlace]
+		itemSlice := world.Rooms[p.Room.Name].Items[itemPlace]
 		itemSlice = append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
 
 		if len(itemSlice) == 0 {
-			delete(rooms[p.Room.Name].Items, itemPlace)
+			delete(world.Rooms[p.Room.Name].Items, itemPlace)
 		} else {
-			rooms[p.Room.Name].Items[itemPlace] = itemSlice
+			world.Rooms[p.Room.Name].Items[itemPlace] = itemSlice
 		}
 		fmt.Fprint(answer, "предмет добавлен в инвентарь: ", tmpItem.Name)
 
@@ -209,16 +209,16 @@ func (p *Player) PutOnClothes(item Items) {
 
 		if tmpItem.Name == "рюкзак" {
 			p.Backpack = true
-			tasks["собрать рюкзак"] = true
+			world.Tasks["собрать рюкзак"] = true
 		}
 
-		itemSlice := rooms[p.Room.Name].Items[itemPlace]
+		itemSlice := world.Rooms[p.Room.Name].Items[itemPlace]
 		itemSlice = append(itemSlice[:itemIndex], itemSlice[itemIndex+1:]...)
 
 		if len(itemSlice) == 0 {
-			delete(rooms[p.Room.Name].Items, itemPlace)
+			delete(world.Rooms[p.Room.Name].Items, itemPlace)
 		} else {
-			rooms[p.Room.Name].Items[itemPlace] = itemSlice
+			world.Rooms[p.Room.Name].Items[itemPlace] = itemSlice
 		}
 
 		fmt.Fprint(answer, "вы надели: ", tmpItem.Name)
@@ -253,33 +253,38 @@ func (p *Player) UseItem(item Items, anotherItem Items) {
 
 }
 
+type World struct {
+	Rooms        map[string]Room
+	StartingRoom string
+	Player       Player
+	Tasks        map[string]bool
+	Usability    map[string][]string
+	Events       map[string]string
+	ItemsGlobal  map[string]Item
+}
+
 var answer = new(strings.Builder)
-var rooms = make(map[string]Room, 3)
-var startingRoom = "кухня"
-var player Player
-var tasks map[string]bool
-var usability map[string][]string
-var events map[string]string
-var itemsGlobal map[string]Item
+var world World
 
 func main() {
 }
 
 func initGame() {
 
-	startingRoom = "кухня"
-	player = Player{}
-	tasks = map[string]bool{
+	world.Rooms = make(map[string]Room, 3)
+	world.Player = Player{}
+	world.StartingRoom = "кухня"
+	world.Tasks = map[string]bool{
 		"собрать рюкзак": false,
 		"идти в универ":  false,
 	}
-	usability = map[string][]string{
+	world.Usability = map[string][]string{
 		"ключи": {"дверь"},
 	}
-	events = map[string]string{
+	world.Events = map[string]string{
 		"ключи+дверь": "дверь открыта",
 	}
-	itemsGlobal = map[string]Item{
+	world.ItemsGlobal = map[string]Item{
 		"чай":       {"чай", true, false},
 		"ключи":     {"ключи", true, false},
 		"конспекты": {"конспекты", true, false},
@@ -292,7 +297,7 @@ func initGame() {
 	var kitchen = Room{
 		Name: "кухня",
 		Items: map[string][]Item{
-			"на столе": {itemsGlobal["чай"]},
+			"на столе": {world.ItemsGlobal["чай"]},
 		},
 		Outs:             []string{"коридор"},
 		GreetingPhrase:   "кухня, ничего интересного.",
@@ -308,8 +313,8 @@ func initGame() {
 	var myRoom = Room{
 		Name: "комната",
 		Items: map[string][]Item{
-			"на столе": {itemsGlobal["ключи"], itemsGlobal["конспекты"]},
-			"на стуле": {itemsGlobal["рюкзак"]},
+			"на столе": {world.ItemsGlobal["ключи"], world.ItemsGlobal["конспекты"]},
+			"на стуле": {world.ItemsGlobal["рюкзак"]},
 		},
 		Outs:           []string{"коридор"},
 		GreetingPhrase: "ты в своей комнате.",
@@ -322,11 +327,11 @@ func initGame() {
 		GreetingPhrase: "на улице весна.",
 	}
 
-	rooms["кухня"] = kitchen
-	rooms["коридор"] = corridor
-	rooms["комната"] = myRoom
-	rooms["улица"] = street
-	player.Room = rooms[startingRoom]
+	world.Rooms["кухня"] = kitchen
+	world.Rooms["коридор"] = corridor
+	world.Rooms["комната"] = myRoom
+	world.Rooms["улица"] = street
+	world.Player.Room = world.Rooms[world.StartingRoom]
 }
 
 func handleCommand(command string) string {
@@ -336,15 +341,15 @@ func handleCommand(command string) string {
 
 	switch mainCommand {
 	case "идти":
-		player.Go(rooms[words[1]])
+		world.Player.Go(world.Rooms[words[1]])
 	case "взять":
-		player.TakeItem(itemsGlobal[words[1]])
+		world.Player.TakeItem(world.ItemsGlobal[words[1]])
 	case "осмотреться":
-		player.LookAround()
+		world.Player.LookAround()
 	case "надеть":
-		player.PutOnClothes(itemsGlobal[words[1]])
+		world.Player.PutOnClothes(world.ItemsGlobal[words[1]])
 	case "применить":
-		player.UseItem(itemsGlobal[words[1]], itemsGlobal[words[2]])
+		world.Player.UseItem(world.ItemsGlobal[words[1]], world.ItemsGlobal[words[2]])
 	default:
 		return "неизвестная команда"
 	}
