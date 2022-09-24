@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 )
 
 var md5Mutex = &sync.Mutex{}
+var wg = &sync.WaitGroup{}
 
 func takeMd5Hash(data string, out chan string) {
 	md5Mutex.Lock()
@@ -63,23 +65,18 @@ func MultiHash(in, out chan interface{}) {
 	}
 	fmt.Println("MultiHash result", answer)
 	out <- answer
+	wg.Done()
 }
 
-func CombineResult(in, out chan interface{}) {
+func CombineResults(in, out chan interface{}) {
 	var allData []string
-	// for rawData := range in {
-	// 	data, ok := rawData.(string)
-	// 	if !ok {
-	// 		fmt.Println("cant convert result data to string")
-	// 	}
-	// 	allData = append(allData, data)
-	// }
-	rawData := <-in
-	data := rawData.(string)
-	allData = append(allData, data)
-	rawData = <-in
-	data = rawData.(string)
-	allData = append(allData, data)
+	for rawData := range in {
+		data, ok := rawData.(string)
+		if !ok {
+			fmt.Println("cant convert result data to string")
+		}
+		allData = append(allData, data)
+	}
 
 	sort.Strings(allData)
 	out <- strings.Join(allData, "_")
@@ -90,25 +87,45 @@ func CombineResult(in, out chan interface{}) {
 // }
 
 func main() {
+	runtime.GOMAXPROCS(0)
 	start := time.Now()
 	// ExecutePipeline()
-	in := make(chan interface{}, 6)
-	out := make(chan interface{}, 6)
+	in := make(chan interface{}, 7)
+	out := make(chan interface{}, 7)
 	in <- "0"
+	in <- "1"
+	in <- "1"
+	in <- "1"
+	in <- "1"
+	in <- "1"
 	in <- "1"
 
 	go SingleHash(in, out)
 	go SingleHash(in, out)
+	go SingleHash(in, out)
+	go SingleHash(in, out)
+	go SingleHash(in, out)
+	go SingleHash(in, out)
+	go SingleHash(in, out)
+
 	// go MultiHash(out, in)
-	MultiHash(out, in)
-	MultiHash(out, in)
-	// close(out)
-	CombineResult(in, out)
+	wg.Add(7)
+	go MultiHash(out, in)
+	go MultiHash(out, in)
+	go MultiHash(out, in)
+	go MultiHash(out, in)
+	go MultiHash(out, in)
+	go MultiHash(out, in)
+	go MultiHash(out, in)
+	// time.Sleep(5 * time.Second)
+	wg.Wait()
+	close(in)
+	CombineResults(in, out)
+	fmt.Println(<-out)
 
 	end := time.Since(start)
 	fmt.Println(end)
 	// time.Sleep(2 * time.Second)
-	fmt.Println(<-out)
 	// fmt.Println(<-out)
 
 	// for msg := range in {
