@@ -40,12 +40,12 @@ func InnerSingleHash(in, out chan interface{}, waiter *sync.WaitGroup) {
 	result := <-outString + "~" + <-outString
 	out <- result
 
-	fmt.Println("singlehash - done", result)
+	// fmt.Println("singlehash - done", result)
 
 }
 
 func SingleHash(in, out chan interface{}) {
-	fmt.Println("singlecall", len(in))
+	// fmt.Println("singlecall", len(in))
 	singleWaiter := &sync.WaitGroup{}
 	for i := 0; i < len(in); i++ {
 		singleWaiter.Add(1)
@@ -56,7 +56,7 @@ func SingleHash(in, out chan interface{}) {
 }
 
 func InnerMultiHash(in, out chan interface{}, waiter *sync.WaitGroup) {
-	fmt.Println("innermulticall", len(in))
+	// fmt.Println("innermulticall", len(in))
 	defer waiter.Done()
 	dataRaw := <-in
 	data, ok := dataRaw.(string)
@@ -84,11 +84,11 @@ func InnerMultiHash(in, out chan interface{}, waiter *sync.WaitGroup) {
 		answer += msg
 	}
 	out <- answer
-	fmt.Println("multihash - done", answer)
+	// fmt.Println("multihash - done", answer)
 }
 
 func MultiHash(in, out chan interface{}) {
-	fmt.Println("multicall", len(in))
+	// fmt.Println("multicall", len(in))
 
 	multiWaiter := &sync.WaitGroup{}
 
@@ -112,7 +112,7 @@ func CombineResults(in, out chan interface{}) {
 
 	sort.Strings(allData)
 	out <- strings.Join(allData, "_")
-	fmt.Println(strings.Join(allData, "_"))
+	// fmt.Println(strings.Join(allData, "_"))
 }
 
 func callingJob(someJob job, in, out chan interface{}, shouldClose bool, waiter *sync.WaitGroup) {
@@ -148,7 +148,7 @@ func ExecutePipeline(jobs ...job) {
 func main() {
 	inputData := []int{0, 1, 1, 2, 3, 5, 8}
 	testResult := "NOT_SET"
-	runtime.GOMAXPROCS(1)
+	runtime.GOMAXPROCS(0)
 
 	hashSignJobs := []job{
 		job(func(in, out chan interface{}) {
