@@ -25,10 +25,12 @@ func takeCrc32Hash(data string, out chan string) {
 
 func SingleHash(in, out chan interface{}) {
 	dataRaw := <-in
-	data, ok := dataRaw.(string)
+	checkedData, ok := dataRaw.(int)
 	if !ok {
-		fmt.Println("cant convert result data to string")
+		fmt.Println("input value is not int")
+		return
 	}
+	data := strconv.Itoa(checkedData)
 	outString := make(chan string, 1)
 	go takeMd5Hash(data, outString)
 	go takeCrc32Hash(data, outString)
@@ -41,7 +43,8 @@ func MultiHash(in, out chan interface{}) {
 	dataRaw := <-in
 	data, ok := dataRaw.(string)
 	if !ok {
-		fmt.Println("cant convert result data to string")
+		fmt.Println("cant convert result data to string in MultiHash")
+		return
 	}
 	outString := make(chan string, 6)
 
@@ -63,7 +66,7 @@ func MultiHash(in, out chan interface{}) {
 		// fmt.Println(i, msg)
 		answer += msg
 	}
-	fmt.Println("MultiHash result", answer)
+	// fmt.Println("MultiHash result", answer)
 	out <- answer
 	wg.Done()
 }
@@ -73,7 +76,8 @@ func CombineResults(in, out chan interface{}) {
 	for rawData := range in {
 		data, ok := rawData.(string)
 		if !ok {
-			fmt.Println("cant convert result data to string")
+			fmt.Println("cant convert result data to string in CombineResults")
+			return
 		}
 		allData = append(allData, data)
 	}
@@ -83,52 +87,91 @@ func CombineResults(in, out chan interface{}) {
 
 }
 
-// func ExecutePipeline(funcs ...job) {
-// }
+func callingJob(someJob job, in, out chan interface{}, shouldClose bool, waiter *sync.WaitGroup) {
+	if waiter != nil {
+		defer waiter.Done()
+	}
+
+	someJob(in, out)
+
+	if shouldClose {
+		close(out)
+	}
+}
+
+func ExecutePipeline(jobs ...job) {
+	// in := make(chan interface{}, 100)
+	// out := make(chan interface{}, 100)
+
+	// inChannels := make([]chan interface{}, len(jobs))
+	// outChannels := make([]chan interface{}, len(jobs))
+	waitJobs := &sync.WaitGroup{}
+
+	channels := make([]chan interface{}, len(jobs)+1)
+
+	for i := range channels {
+		channels[i] = make(chan interface{}, 3)
+	}
+
+	for i := 0; i < len(jobs); i++ {
+		waitJobs.Add(1)
+		go callingJob(jobs[i], channels[i], channels[i+1], true, waitJobs)
+	}
+	waitJobs.Wait()
+
+	// jobs[0](channels[0], channels[1])
+	// // close(channels[1])
+	// go jobs[1](channels[1], channels[2])
+	// // close(channels[2])
+	// jobs[2](channels[2], nil)
+	// time.Sleep(time.Millisecond)
+
+	// go jobs[1](out, in)
+	// jobs[0](in, out)
+
+	// jobs[0](in, out)
+
+	// inputNumber := len(out)
+	// for i := 0; i < inputNumber; i++ {
+	// 	go jobs[1](out, in)
+	// }
+
+	// for i := 0; i < inputNumber; i++ {
+	// 	wg.Add(1)
+	// 	go jobs[2](in, out)
+	// }
+	// wg.Wait()
+
+	// close(out)
+	// jobs[3](out, in)
+	// jobs[4](in, out)
+}
 
 func main() {
+	inputData := []int{0, 1, 1, 2, 3, 5, 8}
+	testResult := "NOT_SET"
 	runtime.GOMAXPROCS(0)
+
+	hashSignJobs := []job{
+		job(func(in, out chan interface{}) {
+			for _, fibNum := range inputData {
+				out <- fibNum
+			}
+		}),
+		job(SingleHash),
+		job(MultiHash),
+		job(CombineResults),
+		job(func(in, out chan interface{}) {
+			dataRaw := <-in
+			data, _ := dataRaw.(string)
+			testResult = data
+		}),
+	}
 	start := time.Now()
-	// ExecutePipeline()
-	in := make(chan interface{}, 7)
-	out := make(chan interface{}, 7)
-	in <- "0"
-	in <- "1"
-	in <- "1"
-	in <- "1"
-	in <- "1"
-	in <- "1"
-	in <- "1"
 
-	go SingleHash(in, out)
-	go SingleHash(in, out)
-	go SingleHash(in, out)
-	go SingleHash(in, out)
-	go SingleHash(in, out)
-	go SingleHash(in, out)
-	go SingleHash(in, out)
-
-	// go MultiHash(out, in)
-	wg.Add(7)
-	go MultiHash(out, in)
-	go MultiHash(out, in)
-	go MultiHash(out, in)
-	go MultiHash(out, in)
-	go MultiHash(out, in)
-	go MultiHash(out, in)
-	go MultiHash(out, in)
-	// time.Sleep(5 * time.Second)
-	wg.Wait()
-	close(in)
-	CombineResults(in, out)
-	fmt.Println(<-out)
+	ExecutePipeline(hashSignJobs...)
 
 	end := time.Since(start)
 	fmt.Println(end)
-	// time.Sleep(2 * time.Second)
-	// fmt.Println(<-out)
-
-	// for msg := range in {
-	// 	fmt.Println(msg)
-	// }
+	fmt.Println(testResult)
 }
