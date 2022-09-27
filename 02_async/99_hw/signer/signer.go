@@ -11,19 +11,25 @@ import (
 )
 
 var md5Mutex = &sync.Mutex{}
-var wg = &sync.WaitGroup{}
 
-func takeMd5Hash(data string, out chan string) {
+// var wg = &sync.WaitGroup{}
+
+func takeMd5Hash(data string, out chan string, waiter *sync.WaitGroup) {
 	md5Mutex.Lock()
 	out <- DataSignerMd5(data)
+	waiter.Done()
 	md5Mutex.Unlock()
 }
 
-func takeCrc32Hash(data string, out chan string) {
+func takeCrc32Hash(data string, out chan string, waiter *sync.WaitGroup) {
+	if waiter != nil {
+		defer waiter.Done()
+	}
 	out <- DataSignerCrc32(data)
 }
 
-func SingleHash(in, out chan interface{}) {
+func InnerSingleHash(in, out chan interface{}, waiter *sync.WaitGroup) {
+	defer waiter.Done()
 	dataRaw := <-in
 	checkedData, ok := dataRaw.(int)
 	if !ok {
@@ -32,18 +38,41 @@ func SingleHash(in, out chan interface{}) {
 	}
 	data := strconv.Itoa(checkedData)
 	outString := make(chan string, 1)
-	go takeMd5Hash(data, outString)
-	go takeCrc32Hash(data, outString)
-	go takeCrc32Hash(<-outString, outString)
 
-	out <- <-outString + "~" + <-outString
+	innerWaiter := &sync.WaitGroup{}
+	innerWaiter.Add(3)
+	go takeMd5Hash(data, outString, innerWaiter)
+	go takeCrc32Hash(data, outString, innerWaiter)
+	go takeCrc32Hash(<-outString, outString, innerWaiter)
+
+	// innerWaiter.Wait()
+	// out <- <-outString + "~" + <-outString
+
+	result := <-outString + "~" + <-outString
+	out <- result
+
+	fmt.Println("singlehash - done", result)
+
 }
 
-func MultiHash(in, out chan interface{}) {
+func SingleHash(in, out chan interface{}) {
+	fmt.Println("singlecall", len(in))
+	singleWaiter := &sync.WaitGroup{}
+	for i := 0; i < len(in); i++ {
+		singleWaiter.Add(1)
+		go InnerSingleHash(in, out, singleWaiter)
+	}
+
+	singleWaiter.Wait()
+}
+
+func InnerMultiHash(in, out chan interface{}, waiter *sync.WaitGroup) {
+	fmt.Println("innermulticall", len(in))
+	defer waiter.Done()
 	dataRaw := <-in
 	data, ok := dataRaw.(string)
 	if !ok {
-		fmt.Println("cant convert result data to string in MultiHash")
+		fmt.Println("cant convert result data to string in MultiHash", dataRaw)
 		return
 	}
 	outString := make(chan string, 6)
@@ -51,7 +80,7 @@ func MultiHash(in, out chan interface{}) {
 	ticker := time.NewTicker(5 * time.Millisecond)
 	i := 0
 	for tickTime := range ticker.C {
-		go takeCrc32Hash(strconv.Itoa(i)+data, outString)
+		go takeCrc32Hash(strconv.Itoa(i)+data, outString, nil)
 		if i == 5 {
 			ticker.Stop()
 			break
@@ -63,12 +92,22 @@ func MultiHash(in, out chan interface{}) {
 	var answer string
 	for i := 0; i < 6; i++ {
 		msg := <-outString
-		// fmt.Println(i, msg)
 		answer += msg
 	}
-	// fmt.Println("MultiHash result", answer)
 	out <- answer
-	wg.Done()
+	fmt.Println("multihash - done", answer)
+}
+
+func MultiHash(in, out chan interface{}) {
+	fmt.Println("multicall", len(in))
+
+	multiWaiter := &sync.WaitGroup{}
+
+	for i := 0; i < 7; i++ {
+		multiWaiter.Add(1)
+		go InnerMultiHash(in, out, multiWaiter)
+	}
+	multiWaiter.Wait()
 }
 
 func CombineResults(in, out chan interface{}) {
@@ -84,7 +123,7 @@ func CombineResults(in, out chan interface{}) {
 
 	sort.Strings(allData)
 	out <- strings.Join(allData, "_")
-
+	fmt.Println(strings.Join(allData, "_"))
 }
 
 func callingJob(someJob job, in, out chan interface{}, shouldClose bool, waiter *sync.WaitGroup) {
@@ -100,22 +139,19 @@ func callingJob(someJob job, in, out chan interface{}, shouldClose bool, waiter 
 }
 
 func ExecutePipeline(jobs ...job) {
-	// in := make(chan interface{}, 100)
-	// out := make(chan interface{}, 100)
 
-	// inChannels := make([]chan interface{}, len(jobs))
-	// outChannels := make([]chan interface{}, len(jobs))
 	waitJobs := &sync.WaitGroup{}
 
 	channels := make([]chan interface{}, len(jobs)+1)
 
 	for i := range channels {
-		channels[i] = make(chan interface{}, 3)
+		channels[i] = make(chan interface{}, 7)
 	}
 
 	for i := 0; i < len(jobs); i++ {
 		waitJobs.Add(1)
 		go callingJob(jobs[i], channels[i], channels[i+1], true, waitJobs)
+		// time.Sleep(time.Second)
 	}
 	waitJobs.Wait()
 
@@ -150,7 +186,7 @@ func ExecutePipeline(jobs ...job) {
 func main() {
 	inputData := []int{0, 1, 1, 2, 3, 5, 8}
 	testResult := "NOT_SET"
-	runtime.GOMAXPROCS(0)
+	runtime.GOMAXPROCS(1)
 
 	hashSignJobs := []job{
 		job(func(in, out chan interface{}) {
