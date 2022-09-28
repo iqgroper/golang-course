@@ -72,8 +72,8 @@ func InnerMultiHash(in, out chan interface{}, waiter *sync.WaitGroup) {
 		go takeCrc32Hash(strconv.Itoa(i)+data, outString)
 		if i == 5 {
 			ticker.Stop()
-			break
 			fmt.Println(tickTime)
+			break
 		}
 		i++
 	}
@@ -100,7 +100,7 @@ func MultiHash(in, out chan interface{}) {
 }
 
 func CombineResults(in, out chan interface{}) {
-	var allData []string
+	allData := make([]string, 50)
 	for rawData := range in {
 		data, ok := rawData.(string)
 		if !ok {
