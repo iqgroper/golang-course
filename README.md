@@ -57,6 +57,7 @@
 
 ### Как подтянуть изменения основного репозитория в форк
 
+*Старая инструкция* Если надо просто 1 раз подтянуть и в мастере нет ничего своего 
 ```bash
 # будучи в своём репозитории
 
@@ -67,5 +68,30 @@ git pull https://gitlab.com/vk-go/lectures-2022-2.git master
 git pull git@gitlab.com:vk-go/lectures-2022-2.git master
 
 # а потом запушить изменения к себе
+git push origin master
+```
+
+# Новая инструкция
+## Добавляем remote оригинального репозитория
+```bash
+# По ssh
+git remote add upstream git@gitlab.com:vk-go/lectures-2022-2.git
+
+# Или по https
+git remote add upstream https://gitlab.com/vk-go/lectures-2022-2.git
+
+# можно проверить свои remote
+git remote -v
+# там origin - это ваша fork-нутая репа, upstream - оригинальная репа с лекциями
+```
+## Дальше можно делать все привычные операции git с upstream
+```bash
+# Подтянуть свежие ветки из оригинального репозитория (upstream) 
+git fetch upstream
+
+# Вмерджить мастер из оригинального репозитория (upstream)
+git merge upstream/master
+
+# push в свой репозиторий (origin) локальну ветку master
 git push origin master
 ```
