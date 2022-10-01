@@ -86,6 +86,9 @@ git remote -v
 ```
 ## Дальше можно делать все привычные операции git с upstream
 ```bash
+# Подтянуть свежие ветки из оригинального репозитория (upstream) 
+git fetch upstream
+
 # Вмерджить мастер из оригинального репозитория (upstream)
 git merge upstream/master
 
