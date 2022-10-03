@@ -53,6 +53,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 var filename = "dataset.xml"
+var correctFilename = "dataset.xml"
 
 func SearchServer(w http.ResponseWriter, r *http.Request) {
 
@@ -90,11 +91,12 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderField := r.FormValue("order_field")
-	if orderField != "" {
+	if orderField == "" {
 		orderField = "Name"
 	}
 
 	orderBy := r.FormValue("order_by")
+	fmt.Println("orderby", orderBy)
 
 	var responseBody []User
 	if query == "" {
@@ -181,21 +183,6 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		})
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		error := SearchErrorResponse{
-			Error: "OrderBy invalid",
-		}
-		result, err3 := json.Marshal(error)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Println(fmt.Errorf("%s", err3))
-			return
-		}
-		_, err4 := w.Write(result)
-		if err3 != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Println(fmt.Errorf("%s", err4))
-			return
-		}
 		return
 	}
 
@@ -206,6 +193,9 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+
+	fmt.Println(string(body))
+
 	_, error := w.Write(body)
 	if error != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -226,16 +216,15 @@ func clientHit() {
 		Limit:      25,
 		Offset:     0,
 		Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"RoseCarney\"},{\"Name\":\"OwenLynn\"}]}",
-		OrderField: "Age",
+		OrderField: "sdafs",
 		OrderBy:    1,
 	}
 	resp, err := client.FindUsers(request)
 	if err != nil {
 		fmt.Println(err)
+		fmt.Println("resp", (resp))
 		return
 	}
-
-	fmt.Println("resp", resp)
 }
 
 func main() {
