@@ -11,8 +11,8 @@ import (
 )
 
 type Row struct {
-	Id             int    `xml:"id"`
-	Guid           string `xml:"guid"`
+	ID             int    `xml:"id"`
+	GUID           string `xml:"guid"`
 	IsActive       bool   `xml:"isActive"`
 	Balance        string `xml:"balance"`
 	PictureURL     string `xml:"picture"`
@@ -52,6 +52,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	SearchServer(w, r)
 }
 
+var filename = "dataset.xml"
+
 func SearchServer(w http.ResponseWriter, r *http.Request) {
 
 	if r.Header["Accesstoken"][0] != "hello" {
@@ -59,7 +61,7 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := ioutil.ReadFile("dataset.xml")
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		error := fmt.Errorf("%s", err)
@@ -68,10 +70,10 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows := Rows{}
-	err = xml.Unmarshal([]byte(data), &rows)
-	if err != nil {
+	err1 := xml.Unmarshal(data, &rows)
+	if err1 != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Errorf("%s", err)
+		fmt.Println(fmt.Errorf("%s", err1))
 		return
 	}
 
@@ -81,33 +83,18 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		err = json.Unmarshal([]byte(query), &queryJSON)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Errorf("%s", err)
+			fmt.Println(fmt.Errorf("%s", err))
 			return
 		}
-		fmt.Println("query is", query)
+		// fmt.Println("query is", query)
 	}
 
 	orderField := r.FormValue("order_field")
 	if orderField != "" {
-		fmt.Println("orderField is", orderField)
-	} else {
 		orderField = "Name"
 	}
 
 	orderBy := r.FormValue("order_by")
-	if orderBy != "" {
-		fmt.Println("order_by is", orderBy)
-	}
-
-	limit := r.FormValue("limit")
-	if limit != "" {
-		fmt.Println("limit is", limit)
-	}
-
-	offset := r.FormValue("offset")
-	if offset != "" {
-		fmt.Println("offset is", offset)
-	}
 
 	var responseBody []User
 	if query == "" {
@@ -115,7 +102,7 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		i := 0
 		for _, user := range rows.List {
 			responseBody[i] = User{
-				ID:     user.Id,
+				ID:     user.ID,
 				Name:   user.FirstName + user.LastName,
 				Age:    user.Age,
 				About:  user.About,
@@ -131,7 +118,7 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 			for _, order := range queryJSON.QueryList {
 				if user.FirstName+user.LastName == order.Name || user.About == order.About {
 					responseBody[i] = User{
-						ID:     user.Id,
+						ID:     user.ID,
 						Name:   user.FirstName + user.LastName,
 						Age:    user.Age,
 						About:  user.About,
@@ -148,13 +135,18 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		error := SearchErrorResponse{
 			Error: "OrderField invalid",
 		}
-		result, err := json.Marshal(error)
-		if err != nil {
+		result, err2 := json.Marshal(error)
+		if err2 != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Errorf("%s", err)
+			fmt.Println(fmt.Errorf("%s", err2))
 			return
 		}
-		w.Write(result)
+		_, err5 := w.Write(result)
+		if err5 != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Println(fmt.Errorf("%s", err5))
+			return
+		}
 		return
 	}
 
@@ -192,24 +184,34 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		error := SearchErrorResponse{
 			Error: "OrderBy invalid",
 		}
-		result, err := json.Marshal(error)
+		result, err3 := json.Marshal(error)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Errorf("%s", err)
+			fmt.Println(fmt.Errorf("%s", err3))
 			return
 		}
-		w.Write(result)
+		_, err4 := w.Write(result)
+		if err3 != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Println(fmt.Errorf("%s", err4))
+			return
+		}
 		return
 	}
 
 	body, err := json.Marshal(responseBody)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Errorf("%s", err)
+		fmt.Println(fmt.Errorf("%s", err))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	_, error := w.Write(body)
+	if error != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println(fmt.Errorf("%s", err))
+		return
+	}
 }
 
 func clientHit() {
@@ -223,9 +225,9 @@ func clientHit() {
 	request := SearchRequest{
 		Limit:      25,
 		Offset:     0,
-		Query:      "",
+		Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"RoseCarney\"},{\"Name\":\"OwenLynn\"}]}",
 		OrderField: "Age",
-		OrderBy:    -1,
+		OrderBy:    1,
 	}
 	resp, err := client.FindUsers(request)
 	if err != nil {
@@ -252,5 +254,8 @@ func main() {
 
 	fmt.Println("starting server at :8080")
 	go clientHit()
-	server.ListenAndServe()
+	err := server.ListenAndServe()
+	if err != nil {
+		panic(err)
+	}
 }
