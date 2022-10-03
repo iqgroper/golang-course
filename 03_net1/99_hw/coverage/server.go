@@ -96,7 +96,6 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderBy := r.FormValue("order_by")
-	fmt.Println("orderby", orderBy)
 
 	var responseBody []User
 	if query == "" {
@@ -209,8 +208,6 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 
-	fmt.Println(string(body))
-
 	_, error := w.Write(body)
 	if error != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -231,7 +228,7 @@ func clientHit() {
 		Limit:      25,
 		Offset:     0,
 		Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"RoseCarney\"},{\"Name\":\"OwenLynn\"}]}",
-		OrderField: "sdafs",
+		OrderField: "Age",
 		OrderBy:    1,
 	}
 	resp, err := client.FindUsers(request)

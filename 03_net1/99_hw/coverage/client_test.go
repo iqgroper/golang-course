@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 )
 
 type ServerTestCase struct {
@@ -448,7 +449,78 @@ func TestFindUsers(t *testing.T) {
 	ts.Close()
 }
 
-// отдельная функция под ошибку имени файла на сервере и для таймаута
+func TestFindUnknownClientDo(t *testing.T) {
+	myCase := ClientTestCase{
+		TestDescribtion: "Unknown error in client.Do()",
+		IsError:         true,
+		Request: SearchRequest{
+			Limit:      3,
+			Offset:     0,
+			Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"OwenLynn\"}]}",
+			OrderField: "Age",
+			OrderBy:    1,
+		},
+		AccessToken: "hello",
+		Response:    nil,
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
+
+	client := &SearchClient{
+		AccessToken: myCase.AccessToken,
+		URL:         "2128506",
+	}
+	result, err := client.FindUsers(myCase.Request)
+
+	if err != nil && !myCase.IsError {
+		t.Errorf("(%s) unexpected error: %#v", myCase.TestDescribtion, err)
+	}
+	if err == nil && myCase.IsError {
+		t.Errorf("(%s) expected error, got nil", myCase.TestDescribtion)
+	}
+	if !reflect.DeepEqual(myCase.Response, result) {
+		t.Errorf("(%s) wrong result, EXPECTED: %#v, GOT: %#v", myCase.TestDescribtion, myCase.Response, result)
+	}
+	ts.Close()
+}
+
+func TestFindTimeout(t *testing.T) {
+	myCase := ClientTestCase{
+		TestDescribtion: "Timeout",
+		IsError:         true,
+		Request: SearchRequest{
+			Limit:      3,
+			Offset:     0,
+			Query:      "{\"querylist\":[{\"Name\":\"нучтоеще\"},{\"Name\":\"OwenLynn\"}]}",
+			OrderField: "Age",
+			OrderBy:    1,
+		},
+		AccessToken: "hello",
+		Response:    nil,
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(2 * time.Second)
+	}))
+
+	client := &SearchClient{
+		AccessToken: myCase.AccessToken,
+		URL:         ts.URL,
+	}
+	result, err := client.FindUsers(myCase.Request)
+
+	if err != nil && !myCase.IsError {
+		t.Errorf("(%s) unexpected error: %#v", myCase.TestDescribtion, err)
+	}
+	if err == nil && myCase.IsError {
+		t.Errorf("(%s) expected error, got nil", myCase.TestDescribtion)
+	}
+	if !reflect.DeepEqual(myCase.Response, result) {
+		t.Errorf("(%s) wrong result, EXPECTED: %#v, GOT: %#v", myCase.TestDescribtion, myCase.Response, result)
+	}
+	ts.Close()
+}
+
 func TestFindUsersFilename(t *testing.T) {
 	myCase := ClientTestCase{
 		TestDescribtion: "Bad filename in server",
