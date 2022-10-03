@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"testing"
 )
@@ -137,13 +138,13 @@ func TestSearchServer(t *testing.T) {
 			StatusCode:      http.StatusUnauthorized,
 		},
 		{
-			TestDescribtion: "Invalid AccesssToken check",
+			TestDescribtion: "Invalid OrderBy check",
 			AccessToken:     "hello",
 			URL:             "http://localhost:8080/",
 			Query:           "{\"querylist\":[{\"Name\":\"GlennJordan\"}]}",
 			OrderField:      "Age",
 			OrderBy:         12,
-			Response:        "",
+			Response:        `{"Error":"OrderBy invalid"}`,
 			StatusCode:      http.StatusBadRequest,
 		},
 		{
@@ -260,14 +261,18 @@ func TestSearchServerWrongFilename(t *testing.T) {
 }
 
 type ClientTestCase struct {
-	Request     SearchRequest
-	AccessToken string
-	Response    SearchResponse
+	TestDescribtion string
+	Request         SearchRequest
+	AccessToken     string
+	Response        *SearchResponse
+	IsError         bool
 }
 
 func TestFindUsers(t *testing.T) {
 	cases := []ClientTestCase{
 		{
+			TestDescribtion: "fine request",
+			IsError:         false,
 			Request: SearchRequest{
 				Limit:      25,
 				Offset:     0,
@@ -276,24 +281,143 @@ func TestFindUsers(t *testing.T) {
 				OrderBy:    1,
 			},
 			AccessToken: "hello",
-			Response: SearchResponse{
+			Response: &SearchResponse{
 				Users: []User{
 					{
-						ID:     0,
+						ID:     8,
 						Name:   "GlennJordan",
-						Age:    12,
-						About:  "",
-						Gender: "female",
+						Age:    29,
+						About:  "Duis reprehenderit sit velit exercitation non aliqua magna quis ad excepteur anim. Eu cillum cupidatat sit magna cillum irure occaecat sunt officia officia deserunt irure. Cupidatat dolor cupidatat ipsum minim consequat Lorem adipisicing. Labore fugiat cupidatat nostrud voluptate ea eu pariatur non. Ipsum quis occaecat irure amet esse eu fugiat deserunt incididunt Lorem esse duis occaecat mollit.\n",
+						Gender: "male",
 					},
 					{
-						ID:     0,
+						ID:     4,
 						Name:   "OwenLynn",
-						Age:    12,
-						About:  "",
+						Age:    30,
+						About:  "Elit anim elit eu et deserunt veniam laborum commodo irure nisi ut labore reprehenderit fugiat. Ipsum adipisicing labore ullamco occaecat ut. Ea deserunt ad dolor eiusmod aute non enim adipisicing sit ullamco est ullamco. Elit in proident pariatur elit ullamco quis. Exercitation amet nisi fugiat voluptate esse sit et consequat sit pariatur labore et.\n",
 						Gender: "male",
 					},
 				},
 			},
+		},
+		{
+			TestDescribtion: "negative limit",
+			IsError:         true,
+			Request: SearchRequest{
+				Limit:      -2,
+				Offset:     0,
+				Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"OwenLynn\"}]}",
+				OrderField: "Age",
+				OrderBy:    1,
+			},
+			AccessToken: "hello",
+			Response:    nil,
+		},
+		{
+			TestDescribtion: "limit > 25",
+			IsError:         false,
+			Request: SearchRequest{
+				Limit:      30,
+				Offset:     0,
+				Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"OwenLynn\"}]}",
+				OrderField: "Age",
+				OrderBy:    1,
+			},
+			AccessToken: "hello",
+			Response: &SearchResponse{
+				Users: []User{
+					{
+						ID:     8,
+						Name:   "GlennJordan",
+						Age:    29,
+						About:  "Duis reprehenderit sit velit exercitation non aliqua magna quis ad excepteur anim. Eu cillum cupidatat sit magna cillum irure occaecat sunt officia officia deserunt irure. Cupidatat dolor cupidatat ipsum minim consequat Lorem adipisicing. Labore fugiat cupidatat nostrud voluptate ea eu pariatur non. Ipsum quis occaecat irure amet esse eu fugiat deserunt incididunt Lorem esse duis occaecat mollit.\n",
+						Gender: "male",
+					},
+					{
+						ID:     4,
+						Name:   "OwenLynn",
+						Age:    30,
+						About:  "Elit anim elit eu et deserunt veniam laborum commodo irure nisi ut labore reprehenderit fugiat. Ipsum adipisicing labore ullamco occaecat ut. Ea deserunt ad dolor eiusmod aute non enim adipisicing sit ullamco est ullamco. Elit in proident pariatur elit ullamco quis. Exercitation amet nisi fugiat voluptate esse sit et consequat sit pariatur labore et.\n",
+						Gender: "male",
+					},
+				},
+			},
+		},
+		{
+			TestDescribtion: "negative offset",
+			IsError:         true,
+			Request: SearchRequest{
+				Limit:      2,
+				Offset:     -2,
+				Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"OwenLynn\"}]}",
+				OrderField: "Age",
+				OrderBy:    1,
+			},
+			AccessToken: "hello",
+			Response:    nil,
+		},
+		{
+			TestDescribtion: "Bad AccessToken",
+			IsError:         true,
+			Request: SearchRequest{
+				Limit:      2,
+				Offset:     0,
+				Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"OwenLynn\"}]}",
+				OrderField: "Age",
+				OrderBy:    1,
+			},
+			AccessToken: "BadAccessToken",
+			Response:    nil,
+		},
+		{
+			TestDescribtion: "Bad OrderField",
+			IsError:         true,
+			Request: SearchRequest{
+				Limit:      3,
+				Offset:     0,
+				Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"OwenLynn\"}]}",
+				OrderField: "BadOrderField",
+				OrderBy:    1,
+			},
+			AccessToken: "hello",
+			Response:    nil,
+		},
+		{
+			TestDescribtion: "NextPage == true",
+			IsError:         false,
+			Request: SearchRequest{
+				Limit:      1,
+				Offset:     0,
+				Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"OwenLynn\"}]}",
+				OrderField: "Age",
+				OrderBy:    1,
+			},
+			AccessToken: "hello",
+			Response: &SearchResponse{
+				Users: []User{
+					{
+						ID:     8,
+						Name:   "GlennJordan",
+						Age:    29,
+						About:  "Duis reprehenderit sit velit exercitation non aliqua magna quis ad excepteur anim. Eu cillum cupidatat sit magna cillum irure occaecat sunt officia officia deserunt irure. Cupidatat dolor cupidatat ipsum minim consequat Lorem adipisicing. Labore fugiat cupidatat nostrud voluptate ea eu pariatur non. Ipsum quis occaecat irure amet esse eu fugiat deserunt incididunt Lorem esse duis occaecat mollit.\n",
+						Gender: "male",
+					},
+				},
+				NextPage: true,
+			},
+		},
+		{
+			TestDescribtion: "Incorrect orderBy",
+			IsError:         true,
+			Request: SearchRequest{
+				Limit:      15,
+				Offset:     0,
+				Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"OwenLynn\"}]}",
+				OrderField: "Age",
+				OrderBy:    111,
+			},
+			AccessToken: "hello",
+			Response:    nil,
 		},
 	}
 
@@ -306,19 +430,60 @@ func TestFindUsers(t *testing.T) {
 			URL:         ts.URL,
 		}
 
-		result, _ := client.FindUsers(item.Request)
+		result, err := client.FindUsers(item.Request)
 
-		fmt.Println(caseNum, result)
+		// fmt.Println(caseNum, "RESULT:", result)
 
-		// if err != nil && !item.IsError {
-		// 	t.Errorf("[%d] unexpected error: %#v", caseNum, err)
-		// }
-		// if err == nil && item.IsError {
-		// 	t.Errorf("[%d] expected error, got nil", caseNum)
-		// }
-		// if !reflect.DeepEqual(item.Result, result) {
-		// 	t.Errorf("[%d] wrong result, expected %#v, got %#v", caseNum, item.Result, result)
-		// }
+		if err != nil && !item.IsError {
+			t.Errorf("[%d](%s) unexpected error: %#v", caseNum, item.TestDescribtion, err)
+		}
+		if err == nil && item.IsError {
+			t.Errorf("[%d](%s) expected error, got nil", caseNum, item.TestDescribtion)
+		}
+		// if
+		if !reflect.DeepEqual(item.Response, result) {
+			t.Errorf("[%d](%s) wrong result, EXPECTED: %#v, GOT: %#v", caseNum, item.TestDescribtion, item.Response, result)
+		}
+	}
+	ts.Close()
+}
+
+// отдельная функция под ошибку имени файла на сервере и для таймаута
+func TestFindUsersFilename(t *testing.T) {
+	myCase := ClientTestCase{
+		TestDescribtion: "Bad filename in server",
+		IsError:         true,
+		Request: SearchRequest{
+			Limit:      3,
+			Offset:     0,
+			Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"OwenLynn\"}]}",
+			OrderField: "Age",
+			OrderBy:    1,
+		},
+		AccessToken: "hello",
+		Response:    nil,
+	}
+
+	filename = "InvalidFilename"
+	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
+
+	client := &SearchClient{
+		AccessToken: myCase.AccessToken,
+		URL:         ts.URL,
+	}
+	result, err := client.FindUsers(myCase.Request)
+
+	// fmt.Println(caseNum, "RESULT:", result)
+
+	if err != nil && !myCase.IsError {
+		t.Errorf("(%s) unexpected error: %#v", myCase.TestDescribtion, err)
+	}
+	if err == nil && myCase.IsError {
+		t.Errorf("(%s) expected error, got nil", myCase.TestDescribtion)
+	}
+	// if
+	if !reflect.DeepEqual(myCase.Response, result) {
+		t.Errorf("(%s) wrong result, EXPECTED: %#v, GOT: %#v", myCase.TestDescribtion, myCase.Response, result)
 	}
 	ts.Close()
 }

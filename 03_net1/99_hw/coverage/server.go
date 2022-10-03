@@ -183,6 +183,21 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		})
 	default:
 		w.WriteHeader(http.StatusBadRequest)
+		error := SearchErrorResponse{
+			Error: "OrderBy invalid",
+		}
+		result, err2 := json.Marshal(error)
+		if err2 != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Println(fmt.Errorf("%s", err2))
+			return
+		}
+		_, err5 := w.Write(result)
+		if err5 != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Println(fmt.Errorf("%s", err5))
+			return
+		}
 		return
 	}
 
