@@ -53,8 +53,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func SearchServer(w http.ResponseWriter, r *http.Request) {
-	//обработать ситуации когда нулевые значения query orderfield
-	//перед каждой паникой отправлять итернал еррор
 
 	if r.Header["Accesstoken"][0] != "hello" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -63,13 +61,18 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 
 	data, err := ioutil.ReadFile("dataset.xml")
 	if err != nil {
-		panic(err) //internal server error: error w/ filename
+		w.WriteHeader(http.StatusInternalServerError)
+		error := fmt.Errorf("%s", err)
+		fmt.Println(error)
+		return
 	}
 
 	rows := Rows{}
 	err = xml.Unmarshal([]byte(data), &rows)
 	if err != nil {
-		panic(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Errorf("%s", err)
+		return
 	}
 
 	query := r.FormValue("query")
@@ -77,7 +80,9 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 	if query != "" {
 		err = json.Unmarshal([]byte(query), &queryJSON)
 		if err != nil {
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Errorf("%s", err)
+			return
 		}
 		fmt.Println("query is", query)
 	}
@@ -85,6 +90,8 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 	orderField := r.FormValue("order_field")
 	if orderField != "" {
 		fmt.Println("orderField is", orderField)
+	} else {
+		orderField = "Name"
 	}
 
 	orderBy := r.FormValue("order_by")
@@ -102,31 +109,50 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("offset is", offset)
 	}
 
-	responseBody := make([]User, len(queryJSON.QueryList))
-	i := 0
-	for _, user := range rows.List {
-		for _, order := range queryJSON.QueryList {
-			if user.FirstName+user.LastName == order.Name || user.About == order.About {
-				responseBody[i] = User{
-					ID:     user.Id,
-					Name:   user.FirstName + user.LastName,
-					Age:    user.Age,
-					About:  user.About,
-					Gender: user.Gender,
+	var responseBody []User
+	if query == "" {
+		responseBody = make([]User, len(rows.List))
+		i := 0
+		for _, user := range rows.List {
+			responseBody[i] = User{
+				ID:     user.Id,
+				Name:   user.FirstName + user.LastName,
+				Age:    user.Age,
+				About:  user.About,
+				Gender: user.Gender,
+			}
+			i++
+		}
+
+	} else {
+		responseBody = make([]User, len(queryJSON.QueryList))
+		i := 0
+		for _, user := range rows.List {
+			for _, order := range queryJSON.QueryList {
+				if user.FirstName+user.LastName == order.Name || user.About == order.About {
+					responseBody[i] = User{
+						ID:     user.Id,
+						Name:   user.FirstName + user.LastName,
+						Age:    user.Age,
+						About:  user.About,
+						Gender: user.Gender,
+					}
+					i++
 				}
-				i++
 			}
 		}
 	}
 
-	if !(orderBy == "Name" || orderBy == "Age" || orderBy == "Id") {
+	if !(orderField == "Name" || orderField == "Age" || orderField == "Id") {
 		w.WriteHeader(http.StatusBadRequest)
 		error := SearchErrorResponse{
 			Error: "OrderField invalid",
 		}
 		result, err := json.Marshal(error)
 		if err != nil {
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Errorf("%s", err)
+			return
 		}
 		w.Write(result)
 		return
@@ -168,7 +194,9 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		}
 		result, err := json.Marshal(error)
 		if err != nil {
-			panic(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Errorf("%s", err)
+			return
 		}
 		w.Write(result)
 		return
@@ -176,7 +204,9 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(responseBody)
 	if err != nil {
-		panic(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Errorf("%s", err)
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(body)
@@ -193,8 +223,8 @@ func clientHit() {
 	request := SearchRequest{
 		Limit:      25,
 		Offset:     0,
-		Query:      "{\"querylist\":[{\"name\":\"GlennJordan\"}, {\"name\":\"RoseCarney\"}, {\"name\":\"OwenLynn\"}]}",
-		OrderField: "Agge",
+		Query:      "",
+		OrderField: "Age",
 		OrderBy:    -1,
 	}
 	resp, err := client.FindUsers(request)
