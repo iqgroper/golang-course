@@ -57,7 +57,7 @@ func SortSliceAccordingly(responseBody *[]User, orderBy string, orderField strin
 	case "0":
 		break
 	case "1":
-		sort.Slice(*responseBody, func(i, j int) bool {
+		sort.SliceStable(*responseBody, func(i, j int) bool {
 			switch orderField {
 			case "Id":
 				return (*responseBody)[i].ID < (*responseBody)[j].ID
@@ -70,7 +70,7 @@ func SortSliceAccordingly(responseBody *[]User, orderBy string, orderField strin
 			}
 		})
 	case "-1":
-		sort.Slice(*responseBody, func(i, j int) bool {
+		sort.SliceStable(*responseBody, func(i, j int) bool {
 			switch orderField {
 			case "Id":
 				return (*responseBody)[i].ID > (*responseBody)[j].ID
@@ -241,9 +241,9 @@ func clientHit() {
 	}
 
 	request := SearchRequest{
-		Limit:      25,
+		Limit:      35,
 		Offset:     0,
-		Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"RoseCarney\"},{\"Name\":\"OwenLynn\"}]}",
+		Query:      "",
 		OrderField: "Age",
 		OrderBy:    1,
 	}

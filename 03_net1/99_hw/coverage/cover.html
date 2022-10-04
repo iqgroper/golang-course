@@ -269,7 +269,7 @@ func SortSliceAccordingly(responseBody *[]User, orderBy string, orderField strin
         case "0":<span class="cov8" title="1">
                 break</span>
         case "1":<span class="cov8" title="1">
-                sort.Slice(*responseBody, func(i, j int) bool </span><span class="cov8" title="1">{
+                sort.SliceStable(*responseBody, func(i, j int) bool </span><span class="cov8" title="1">{
                         switch orderField </span>{
                         case "Id":<span class="cov8" title="1">
                                 return (*responseBody)[i].ID &lt; (*responseBody)[j].ID</span>
@@ -282,7 +282,7 @@ func SortSliceAccordingly(responseBody *[]User, orderBy string, orderField strin
                         }
                 })
         case "-1":<span class="cov8" title="1">
-                sort.Slice(*responseBody, func(i, j int) bool </span><span class="cov8" title="1">{
+                sort.SliceStable(*responseBody, func(i, j int) bool </span><span class="cov8" title="1">{
                         switch orderField </span>{
                         case "Id":<span class="cov8" title="1">
                                 return (*responseBody)[i].ID &gt; (*responseBody)[j].ID</span>
@@ -453,9 +453,9 @@ func clientHit() <span class="cov0" title="0">{
         }
 
         request := SearchRequest{
-                Limit:      25,
+                Limit:      35,
                 Offset:     0,
-                Query:      "{\"querylist\":[{\"Name\":\"GlennJordan\"},{\"Name\":\"RoseCarney\"},{\"Name\":\"OwenLynn\"}]}",
+                Query:      "",
                 OrderField: "Age",
                 OrderBy:    1,
         }
