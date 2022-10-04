@@ -57,6 +57,11 @@ var correctFilename = "dataset.xml"
 
 func SearchServer(w http.ResponseWriter, r *http.Request) {
 
+	const (
+		NameFiled = "Name"
+		AgeField  = "Age"
+	)
+
 	if r.Header["Accesstoken"][0] != "hello" {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -92,7 +97,7 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 
 	orderField := r.FormValue("order_field")
 	if orderField == "" {
-		orderField = "Name"
+		orderField = NameFiled
 	}
 
 	orderBy := r.FormValue("order_by")
@@ -131,7 +136,7 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !(orderField == "Name" || orderField == "Age" || orderField == "Id") {
+	if !(orderField == NameFiled || orderField == AgeField || orderField == "Id") {
 		w.WriteHeader(http.StatusBadRequest)
 		error := SearchErrorResponse{
 			Error: "OrderField invalid",
@@ -159,9 +164,9 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 			switch orderField {
 			case "Id":
 				return responseBody[i].ID < responseBody[j].ID
-			case "Age":
+			case AgeField:
 				return responseBody[i].Age < responseBody[j].Age
-			case "Name":
+			case NameFiled:
 				return responseBody[i].Name < responseBody[j].Name
 			default:
 				return false
@@ -172,9 +177,9 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 			switch orderField {
 			case "Id":
 				return responseBody[i].ID > responseBody[j].ID
-			case "Age":
+			case AgeField:
 				return responseBody[i].Age > responseBody[j].Age
-			case "Name":
+			case NameFiled:
 				return responseBody[i].Name > responseBody[j].Name
 			default:
 				return false

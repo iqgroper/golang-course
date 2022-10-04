@@ -441,7 +441,6 @@ func TestFindUsers(t *testing.T) {
 		if err == nil && item.IsError {
 			t.Errorf("[%d](%s) expected error, got nil", caseNum, item.TestDescribtion)
 		}
-		// if
 		if !reflect.DeepEqual(item.Response, result) {
 			t.Errorf("[%d](%s) wrong result, EXPECTED: %#v, GOT: %#v", caseNum, item.TestDescribtion, item.Response, result)
 		}
