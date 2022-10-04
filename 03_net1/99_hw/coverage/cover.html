@@ -57,7 +57,7 @@
 				
 				<option value="file0">gitlab.com/vk-go/lectures-2022-2/03_net1/99_hw/coverage/client.go (95.2%)</option>
 				
-				<option value="file1">gitlab.com/vk-go/lectures-2022-2/03_net1/99_hw/coverage/server.go (60.4%)</option>
+				<option value="file1">gitlab.com/vk-go/lectures-2022-2/03_net1/99_hw/coverage/server.go (63.2%)</option>
 				
 				</select>
 			</div>
@@ -264,8 +264,99 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) <span class=
         SearchServer(w, r)
 }</span>
 
+func SortSliceAccordingly(responseBody *[]User, orderBy string, orderField string, w http.ResponseWriter) error <span class="cov8" title="1">{
+        switch orderBy </span>{
+        case "0":<span class="cov8" title="1">
+                break</span>
+        case "1":<span class="cov8" title="1">
+                sort.Slice(*responseBody, func(i, j int) bool </span><span class="cov8" title="1">{
+                        switch orderField </span>{
+                        case "Id":<span class="cov8" title="1">
+                                return (*responseBody)[i].ID &lt; (*responseBody)[j].ID</span>
+                        case AgeField:<span class="cov8" title="1">
+                                return (*responseBody)[i].Age &lt; (*responseBody)[j].Age</span>
+                        case NameField:<span class="cov8" title="1">
+                                return (*responseBody)[i].Name &lt; (*responseBody)[j].Name</span>
+                        default:<span class="cov0" title="0">
+                                return false</span>
+                        }
+                })
+        case "-1":<span class="cov8" title="1">
+                sort.Slice(*responseBody, func(i, j int) bool </span><span class="cov8" title="1">{
+                        switch orderField </span>{
+                        case "Id":<span class="cov8" title="1">
+                                return (*responseBody)[i].ID &gt; (*responseBody)[j].ID</span>
+                        case AgeField:<span class="cov8" title="1">
+                                return (*responseBody)[i].Age &gt; (*responseBody)[j].Age</span>
+                        case NameField:<span class="cov8" title="1">
+                                return (*responseBody)[i].Name &gt; (*responseBody)[j].Name</span>
+                        default:<span class="cov0" title="0">
+                                return false</span>
+                        }
+                })
+        default:<span class="cov8" title="1">
+                w.WriteHeader(http.StatusBadRequest)
+                error := SearchErrorResponse{
+                        Error: "OrderBy invalid",
+                }
+                result, err2 := json.Marshal(error)
+                if err2 != nil </span><span class="cov0" title="0">{
+                        w.WriteHeader(http.StatusInternalServerError)
+                        return fmt.Errorf("%s", err2)
+                }</span>
+                <span class="cov8" title="1">_, err5 := w.Write(result)
+                if err5 != nil </span><span class="cov0" title="0">{
+                        w.WriteHeader(http.StatusInternalServerError)
+                        return fmt.Errorf("%s", err5)
+                }</span>
+                <span class="cov8" title="1">return fmt.Errorf("OrderBy invalid")</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+func DataSearch(responseBody *[]User, query string, queryJSON Queries, rows Rows) <span class="cov8" title="1">{
+
+        if query == "" </span><span class="cov8" title="1">{
+                (*responseBody) = make([]User, len(rows.List))
+                i := 0
+                for _, user := range rows.List </span><span class="cov8" title="1">{
+                        (*responseBody)[i] = User{
+                                ID:     user.ID,
+                                Name:   user.FirstName + user.LastName,
+                                Age:    user.Age,
+                                About:  user.About,
+                                Gender: user.Gender,
+                        }
+                        i++
+                }</span>
+
+        } else<span class="cov8" title="1"> {
+                (*responseBody) = make([]User, len(queryJSON.QueryList))
+                i := 0
+                for _, user := range rows.List </span><span class="cov8" title="1">{
+                        for _, order := range queryJSON.QueryList </span><span class="cov8" title="1">{
+                                if user.FirstName+user.LastName == order.Name || user.About == order.About </span><span class="cov8" title="1">{
+                                        (*responseBody)[i] = User{
+                                                ID:     user.ID,
+                                                Name:   user.FirstName + user.LastName,
+                                                Age:    user.Age,
+                                                About:  user.About,
+                                                Gender: user.Gender,
+                                        }
+                                        i++
+                                }</span>
+                        }
+                }
+        }
+}
+
 var filename = "dataset.xml"
 var correctFilename = "dataset.xml"
+
+const (
+        NameField = "Name"
+        AgeField  = "Age"
+)
 
 func SearchServer(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
 
@@ -304,46 +395,15 @@ func SearchServer(w http.ResponseWriter, r *http.Request) <span class="cov8" tit
 
         <span class="cov8" title="1">orderField := r.FormValue("order_field")
         if orderField == "" </span><span class="cov8" title="1">{
-                orderField = "Name"
+                orderField = NameField
         }</span>
 
         <span class="cov8" title="1">orderBy := r.FormValue("order_by")
 
         var responseBody []User
-        if query == "" </span><span class="cov8" title="1">{
-                responseBody = make([]User, len(rows.List))
-                i := 0
-                for _, user := range rows.List </span><span class="cov8" title="1">{
-                        responseBody[i] = User{
-                                ID:     user.ID,
-                                Name:   user.FirstName + user.LastName,
-                                Age:    user.Age,
-                                About:  user.About,
-                                Gender: user.Gender,
-                        }
-                        i++
-                }</span>
+        DataSearch(&amp;responseBody, query, queryJSON, rows)
 
-        } else<span class="cov8" title="1"> {
-                responseBody = make([]User, len(queryJSON.QueryList))
-                i := 0
-                for _, user := range rows.List </span><span class="cov8" title="1">{
-                        for _, order := range queryJSON.QueryList </span><span class="cov8" title="1">{
-                                if user.FirstName+user.LastName == order.Name || user.About == order.About </span><span class="cov8" title="1">{
-                                        responseBody[i] = User{
-                                                ID:     user.ID,
-                                                Name:   user.FirstName + user.LastName,
-                                                Age:    user.Age,
-                                                About:  user.About,
-                                                Gender: user.Gender,
-                                        }
-                                        i++
-                                }</span>
-                        }
-                }
-        }
-
-        <span class="cov8" title="1">if !(orderField == "Name" || orderField == "Age" || orderField == "Id") </span><span class="cov8" title="1">{
+        if !(orderField == NameField || orderField == AgeField || orderField == "Id") </span><span class="cov8" title="1">{
                 w.WriteHeader(http.StatusBadRequest)
                 error := SearchErrorResponse{
                         Error: "OrderField invalid",
@@ -363,54 +423,10 @@ func SearchServer(w http.ResponseWriter, r *http.Request) <span class="cov8" tit
                 <span class="cov8" title="1">return</span>
         }
 
-        <span class="cov8" title="1">switch orderBy </span>{
-        case "0":<span class="cov8" title="1">
-                break</span>
-        case "1":<span class="cov8" title="1">
-                sort.Slice(responseBody, func(i, j int) bool </span><span class="cov8" title="1">{
-                        switch orderField </span>{
-                        case "Id":<span class="cov8" title="1">
-                                return responseBody[i].ID &lt; responseBody[j].ID</span>
-                        case "Age":<span class="cov8" title="1">
-                                return responseBody[i].Age &lt; responseBody[j].Age</span>
-                        case "Name":<span class="cov8" title="1">
-                                return responseBody[i].Name &lt; responseBody[j].Name</span>
-                        default:<span class="cov0" title="0">
-                                return false</span>
-                        }
-                })
-        case "-1":<span class="cov8" title="1">
-                sort.Slice(responseBody, func(i, j int) bool </span><span class="cov8" title="1">{
-                        switch orderField </span>{
-                        case "Id":<span class="cov8" title="1">
-                                return responseBody[i].ID &gt; responseBody[j].ID</span>
-                        case "Age":<span class="cov8" title="1">
-                                return responseBody[i].Age &gt; responseBody[j].Age</span>
-                        case "Name":<span class="cov8" title="1">
-                                return responseBody[i].Name &gt; responseBody[j].Name</span>
-                        default:<span class="cov0" title="0">
-                                return false</span>
-                        }
-                })
-        default:<span class="cov8" title="1">
-                w.WriteHeader(http.StatusBadRequest)
-                error := SearchErrorResponse{
-                        Error: "OrderBy invalid",
-                }
-                result, err2 := json.Marshal(error)
-                if err2 != nil </span><span class="cov0" title="0">{
-                        w.WriteHeader(http.StatusInternalServerError)
-                        fmt.Println(fmt.Errorf("%s", err2))
-                        return
-                }</span>
-                <span class="cov8" title="1">_, err5 := w.Write(result)
-                if err5 != nil </span><span class="cov0" title="0">{
-                        w.WriteHeader(http.StatusInternalServerError)
-                        fmt.Println(fmt.Errorf("%s", err5))
-                        return
-                }</span>
-                <span class="cov8" title="1">return</span>
-        }
+        <span class="cov8" title="1">errorSort := SortSliceAccordingly(&amp;responseBody, orderBy, orderField, w)
+        if errorSort != nil </span><span class="cov8" title="1">{
+                return
+        }</span>
 
         <span class="cov8" title="1">body, err := json.Marshal(responseBody)
         if err != nil </span><span class="cov0" title="0">{

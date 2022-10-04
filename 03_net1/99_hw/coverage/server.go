@@ -52,15 +52,101 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	SearchServer(w, r)
 }
 
+func SortSliceAccordingly(responseBody *[]User, orderBy string, orderField string, w http.ResponseWriter) error {
+	switch orderBy {
+	case "0":
+		break
+	case "1":
+		sort.Slice(*responseBody, func(i, j int) bool {
+			switch orderField {
+			case "Id":
+				return (*responseBody)[i].ID < (*responseBody)[j].ID
+			case AgeField:
+				return (*responseBody)[i].Age < (*responseBody)[j].Age
+			case NameField:
+				return (*responseBody)[i].Name < (*responseBody)[j].Name
+			default:
+				return false
+			}
+		})
+	case "-1":
+		sort.Slice(*responseBody, func(i, j int) bool {
+			switch orderField {
+			case "Id":
+				return (*responseBody)[i].ID > (*responseBody)[j].ID
+			case AgeField:
+				return (*responseBody)[i].Age > (*responseBody)[j].Age
+			case NameField:
+				return (*responseBody)[i].Name > (*responseBody)[j].Name
+			default:
+				return false
+			}
+		})
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		error := SearchErrorResponse{
+			Error: "OrderBy invalid",
+		}
+		result, err2 := json.Marshal(error)
+		if err2 != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return fmt.Errorf("%s", err2)
+		}
+		_, err5 := w.Write(result)
+		if err5 != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return fmt.Errorf("%s", err5)
+		}
+		return fmt.Errorf("OrderBy invalid")
+	}
+	return nil
+}
+
+func DataSearch(responseBody *[]User, query string, queryJSON Queries, rows Rows) {
+
+	if query == "" {
+		(*responseBody) = make([]User, len(rows.List))
+		i := 0
+		for _, user := range rows.List {
+			(*responseBody)[i] = User{
+				ID:     user.ID,
+				Name:   user.FirstName + user.LastName,
+				Age:    user.Age,
+				About:  user.About,
+				Gender: user.Gender,
+			}
+			i++
+		}
+
+	} else {
+		(*responseBody) = make([]User, len(queryJSON.QueryList))
+		i := 0
+		for _, user := range rows.List {
+			for _, order := range queryJSON.QueryList {
+				if user.FirstName+user.LastName == order.Name || user.About == order.About {
+					(*responseBody)[i] = User{
+						ID:     user.ID,
+						Name:   user.FirstName + user.LastName,
+						Age:    user.Age,
+						About:  user.About,
+						Gender: user.Gender,
+					}
+					i++
+				}
+			}
+		}
+	}
+}
+
 var filename = "dataset.xml"
 var correctFilename = "dataset.xml"
 
-func SearchServer(w http.ResponseWriter, r *http.Request) {
+const (
+	NameField = "Name"
+	AgeField  = "Age"
+)
 
-	const (
-		NameFiled = "Name"
-		AgeField  = "Age"
-	)
+func SearchServer(w http.ResponseWriter, r *http.Request) {
 
 	if r.Header["Accesstoken"][0] != "hello" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -97,46 +183,15 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 
 	orderField := r.FormValue("order_field")
 	if orderField == "" {
-		orderField = NameFiled
+		orderField = NameField
 	}
 
 	orderBy := r.FormValue("order_by")
 
 	var responseBody []User
-	if query == "" {
-		responseBody = make([]User, len(rows.List))
-		i := 0
-		for _, user := range rows.List {
-			responseBody[i] = User{
-				ID:     user.ID,
-				Name:   user.FirstName + user.LastName,
-				Age:    user.Age,
-				About:  user.About,
-				Gender: user.Gender,
-			}
-			i++
-		}
+	DataSearch(&responseBody, query, queryJSON, rows)
 
-	} else {
-		responseBody = make([]User, len(queryJSON.QueryList))
-		i := 0
-		for _, user := range rows.List {
-			for _, order := range queryJSON.QueryList {
-				if user.FirstName+user.LastName == order.Name || user.About == order.About {
-					responseBody[i] = User{
-						ID:     user.ID,
-						Name:   user.FirstName + user.LastName,
-						Age:    user.Age,
-						About:  user.About,
-						Gender: user.Gender,
-					}
-					i++
-				}
-			}
-		}
-	}
-
-	if !(orderField == NameFiled || orderField == AgeField || orderField == "Id") {
+	if !(orderField == NameField || orderField == AgeField || orderField == "Id") {
 		w.WriteHeader(http.StatusBadRequest)
 		error := SearchErrorResponse{
 			Error: "OrderField invalid",
@@ -156,52 +211,8 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch orderBy {
-	case "0":
-		break
-	case "1":
-		sort.Slice(responseBody, func(i, j int) bool {
-			switch orderField {
-			case "Id":
-				return responseBody[i].ID < responseBody[j].ID
-			case AgeField:
-				return responseBody[i].Age < responseBody[j].Age
-			case NameFiled:
-				return responseBody[i].Name < responseBody[j].Name
-			default:
-				return false
-			}
-		})
-	case "-1":
-		sort.Slice(responseBody, func(i, j int) bool {
-			switch orderField {
-			case "Id":
-				return responseBody[i].ID > responseBody[j].ID
-			case AgeField:
-				return responseBody[i].Age > responseBody[j].Age
-			case NameFiled:
-				return responseBody[i].Name > responseBody[j].Name
-			default:
-				return false
-			}
-		})
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-		error := SearchErrorResponse{
-			Error: "OrderBy invalid",
-		}
-		result, err2 := json.Marshal(error)
-		if err2 != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Println(fmt.Errorf("%s", err2))
-			return
-		}
-		_, err5 := w.Write(result)
-		if err5 != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Println(fmt.Errorf("%s", err5))
-			return
-		}
+	errorSort := SortSliceAccordingly(&responseBody, orderBy, orderField, w)
+	if errorSort != nil {
 		return
 	}
 
