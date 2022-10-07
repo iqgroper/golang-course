@@ -3,17 +3,6 @@ module gitlab.com/vk-go/lectures-2022-2
 go 1.15
 
 require (
-	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
-	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
-	github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b
-	github.com/buaazp/fasthttprouter v0.1.1
-	github.com/casbin/casbin v1.9.1
-	github.com/corpix/uarand v0.1.1 // indirect
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/garyburd/redigo v1.6.3
-	github.com/gen1us2k/go-translit v0.0.0-20160120121136-46f1a0be552c
-	github.com/go-sql-driver/mysql v1.6.0
-	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/schema v1.2.0
 	github.com/gorilla/websocket v1.4.2
