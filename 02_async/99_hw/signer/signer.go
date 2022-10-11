@@ -14,8 +14,9 @@ var md5Mutex = &sync.Mutex{}
 
 func takeMd5Hash(data string, out chan string) {
 	md5Mutex.Lock()
-	out <- DataSignerMd5(data)
+	result := DataSignerMd5(data)
 	md5Mutex.Unlock()
+	out <- result
 }
 
 func takeCrc32Hash(data string, out chan string) {
@@ -31,11 +32,11 @@ func InnerSingleHash(in, out chan interface{}, waiter *sync.WaitGroup) {
 		return
 	}
 	data := strconv.Itoa(checkedData)
-	outString := make(chan string, 1)
+	outString := make(chan string, 2)
 
-	go takeMd5Hash(data, outString)
 	go takeCrc32Hash(data, outString)
-	go takeCrc32Hash(<-outString, outString)
+	takeMd5Hash(data, outString)
+	takeCrc32Hash(<-outString, outString)
 
 	result := <-outString + "~" + <-outString
 	out <- result
@@ -115,16 +116,14 @@ func CombineResults(in, out chan interface{}) {
 	// fmt.Println(strings.Join(allData, "_"))
 }
 
-func callingJob(someJob job, in, out chan interface{}, shouldClose bool, waiter *sync.WaitGroup) {
+func callingJob(someJob job, in, out chan interface{}, waiter *sync.WaitGroup) {
 	if waiter != nil {
 		defer waiter.Done()
 	}
 
 	someJob(in, out)
 
-	if shouldClose {
-		close(out)
-	}
+	close(out)
 }
 
 func ExecutePipeline(jobs ...job) {
@@ -134,19 +133,25 @@ func ExecutePipeline(jobs ...job) {
 	channels := make([]chan interface{}, len(jobs)+1)
 
 	for i := range channels {
-		channels[i] = make(chan interface{}, 7)
+		channels[i] = make(chan interface{}, 100)
 	}
 
 	for i := 0; i < len(jobs); i++ {
 		waitJobs.Add(1)
-		go callingJob(jobs[i], channels[i], channels[i+1], true, waitJobs)
+		go callingJob(jobs[i], channels[i], channels[i+1], waitJobs)
 	}
 	waitJobs.Wait()
+	fmt.Println("exec pipeline end")
 
 }
 
 func main() {
+
+	// inputData := []int{}
+	// var inputData [100]int
 	inputData := []int{0, 1, 1, 2, 3, 5, 8}
+	// inputData := []int{0, 1}
+
 	testResult := "NOT_SET"
 	runtime.GOMAXPROCS(0)
 
@@ -158,7 +163,7 @@ func main() {
 		}),
 		job(SingleHash),
 		job(MultiHash),
-		job(CombineResults),
+		// job(CombineResults),
 		job(func(in, out chan interface{}) {
 			dataRaw := <-in
 			data, _ := dataRaw.(string)
