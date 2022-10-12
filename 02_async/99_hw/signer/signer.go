@@ -18,10 +18,7 @@ func takeMd5Hash(data string, out chan string) {
 	out <- result
 }
 
-func takeCrc32Hash(data string, out chan string, waiter *sync.WaitGroup) {
-	if waiter != nil {
-		defer waiter.Done()
-	}
+func takeCrc32Hash(data string, out chan string) {
 	out <- DataSignerCrc32(data)
 }
 
@@ -29,13 +26,14 @@ func InnerSingleHash(in int, out chan interface{}, waiter *sync.WaitGroup) {
 	defer waiter.Done()
 
 	data := strconv.Itoa(in)
-	outString := make(chan string, 2)
+	outStringCrc := make(chan string)
+	outStringMdCrc := make(chan string, 1)
 
-	go takeCrc32Hash(data, outString, nil)
-	takeMd5Hash(data, outString)
-	takeCrc32Hash(<-outString, outString, nil)
+	go takeCrc32Hash(data, outStringCrc)
+	takeMd5Hash(data, outStringMdCrc)
+	takeCrc32Hash(<-outStringMdCrc, outStringMdCrc)
 
-	result := <-outString + "~" + <-outString
+	result := <-outStringCrc + "~" + <-outStringMdCrc
 	out <- result
 
 	// fmt.Println("singlehash - done", result)
@@ -65,15 +63,12 @@ func InnerMultiHash(in string, out chan interface{}, waiter *sync.WaitGroup) {
 	outStrings := make([]chan string, 6)
 
 	for i := range outStrings {
-		outStrings[i] = make(chan string, 1)
+		outStrings[i] = make(chan string)
 	}
 
-	waitHash := &sync.WaitGroup{}
 	for i := 0; i < 6; i++ {
-		waitHash.Add(1)
-		go takeCrc32Hash(strconv.Itoa(i)+data, outStrings[i], waitHash)
+		go takeCrc32Hash(strconv.Itoa(i)+data, outStrings[i])
 	}
-	waitHash.Wait()
 
 	var answer string
 	for i := 0; i < 6; i++ {
@@ -132,7 +127,7 @@ func ExecutePipeline(jobs ...job) {
 	channels := make([]chan interface{}, len(jobs)+1)
 
 	for i := range channels {
-		channels[i] = make(chan interface{}, 100)
+		channels[i] = make(chan interface{})
 	}
 
 	for i := 0; i < len(jobs); i++ {
