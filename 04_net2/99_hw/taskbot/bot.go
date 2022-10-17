@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	tgbotapi "github.com/skinass/telegram-bot-api/v5"
@@ -19,19 +20,25 @@ var (
 	BotToken = "5440179369:AAEPil19XVCOgmtDOE7d0J94xxGBKlpuSF0"
 
 	// урл выдаст вам игрок или хероку
-	WebhookURL = "https://f517-79-139-208-249.ngrok.io"
+	WebhookURL = "https://d4bb-79-139-208-249.ngrok.io"
 )
 
 type User struct {
-	TgUser *tgbotapi.User
-	// Tasks  []uint
+	TgUser     *tgbotapi.User
+	UserChatId int64
 }
 
 type Task struct {
-	Text    string
-	Asignee *User
-	Owner   *User
-	Id      uint
+	Text     string
+	Assignee *User
+	Owner    *User
+	Id       uint
+	Done     bool
+}
+
+func (tsk *Task) HasAssignee() bool {
+
+	return tsk.Assignee != nil
 }
 
 type TaskList struct {
@@ -39,7 +46,12 @@ type TaskList struct {
 	LastTaskId uint
 }
 
-const NewTaskTenplate = `Задача {{.Text}} создана, id={{.Id}}`
+type TaskListPrint struct {
+	TaskLst *TaskList
+	Caller  *tgbotapi.User
+}
+
+const NewTaskTenplate = `Задача "{{.Text}}" создана, id={{.Id}}`
 
 func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
@@ -48,10 +60,10 @@ func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI)
 	taskList.LastTaskId += 1
 
 	newTask := Task{
-		Text:    taskText,
-		Owner:   &User{update.Message.From},
-		Asignee: nil,
-		Id:      taskList.LastTaskId,
+		Text:     taskText,
+		Owner:    &User{update.Message.From, update.FromChat().ChatConfig().ChatID},
+		Assignee: nil,
+		Id:       taskList.LastTaskId,
 	}
 	taskList.TaskList = append(taskList.TaskList, newTask)
 
@@ -69,9 +81,19 @@ func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI)
 }
 
 const taskTemplate = `
-{{range .TaskList}}
+{{$init_var := .}}
+{{range .TaskLst.TaskList}}
 	{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
-	asignee: {{.Asignee}}
+	{{if .HasAssignee }}
+		{{if (eq $init_var.Caller.UserName  .Assignee.TgUser.UserName)}}
+			assignee: я
+			/unassign_{{.Id}} /resolve_{{.Id}}
+		{{else}}
+			assignee: @{{.Assignee.TgUser.UserName}}
+		{{end}}
+	{{else}}
+		/assign_{{.Id}}
+	{{end}}
 {{end}}
 `
 
@@ -88,9 +110,12 @@ func TaskMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI
 	tmpl, _ = tmpl.Parse(taskTemplate)
 	var resp bytes.Buffer
 
-	err := tmpl.Execute(&resp, *taskList)
+	err := tmpl.Execute(&resp, TaskListPrint{
+		TaskLst: taskList,
+		Caller:  update.Message.From,
+	})
 	if err != nil {
-		fmt.Println("Error executing template in  TaskMethod:", err)
+		fmt.Println("Error executing template in TaskMethod:", err)
 	}
 
 	fmt.Println(resp.String())
@@ -99,18 +124,68 @@ func TaskMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI
 		update.Message.Chat.ID,
 		resp.String())
 	bot.Send(msg)
-
-	// command := update.Message.Text
-	// switch {
-	// case strings.Contains(command, "/my"):
-
-	// case strings.Contains(command, "/owner"):
-	// }
-
 }
 
-func AssignMethod(command string) {
+func AssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
+	taskIdStr := strings.Split(update.Message.Text, "_")[1]
+	taskId, err := strconv.Atoi(taskIdStr)
+	if err != nil {
+		fmt.Println("error casting string to int in AssignMethod")
+	}
+
+	for i := 0; i < len(taskList.TaskList); i++ {
+		if taskList.TaskList[i].Id == uint(taskId) {
+
+			fmt.Println("task.Assignee", taskList.TaskList[i].Assignee)
+			if taskList.TaskList[i].Assignee != nil {
+				msg := tgbotapi.NewMessage(
+					taskList.TaskList[i].Assignee.UserChatId,
+					fmt.Sprintf("Задача \"%s\" назначена на @%s", taskList.TaskList[i].Text, update.Message.From.UserName))
+				bot.Send(msg)
+			}
+
+			taskList.TaskList[i].Assignee = &User{
+				TgUser:     update.SentFrom(),
+				UserChatId: update.FromChat().ChatConfig().ChatID,
+			}
+
+			msg := tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				fmt.Sprintf("Задача \"%s\" назначена на вас", taskList.TaskList[i].Text))
+			bot.Send(msg)
+
+			break
+		}
+	}
+}
+
+func UnAssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
+
+	taskIdStr := strings.Split(update.Message.Text, "_")[1]
+	taskId, err := strconv.Atoi(taskIdStr)
+	if err != nil {
+		fmt.Println("error casting string to int in AssignMethod")
+	}
+
+	for _, task := range taskList.TaskList {
+		if task.Id == uint(taskId) {
+			// if task.Assignee != nil {
+			// 	msg := tgbotapi.NewMessage(
+			// 		task.Assignee.TgUser.ID,
+			// 		fmt.Sprintf("Задача \"%s\" назначена на @%s", task.Text, update.Message.From.UserName))
+			// 	bot.Send(msg)
+			// }
+
+			task.Assignee = nil
+			msg := tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				fmt.Sprintf("Задача \"%s\" назначена на вас", task.Text))
+			bot.Send(msg)
+
+			break
+		}
+	}
 }
 
 func ResolveMethod(command string) {
@@ -135,7 +210,7 @@ func startTaskBot(ctx context.Context) error {
 
 	updates := bot.ListenForWebhook("/")
 
-	port := "8080"
+	port := "8081"
 	go func() {
 		log.Fatalln("http err:", http.ListenAndServe(":"+port, nil))
 	}()
@@ -158,11 +233,11 @@ func startTaskBot(ctx context.Context) error {
 
 		case strings.Contains(requestMethod, "/assign"):
 			fmt.Println("/assign", update.Message.Text)
-			AssignMethod(requestMethod)
+			AssignMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/unassign"):
 			fmt.Println("/unassing", update.Message.Text)
-			AssignMethod(requestMethod)
+			AssignMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/resolve"):
 			fmt.Println("/resolve", update.Message.Text)
