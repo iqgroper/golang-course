@@ -25,7 +25,7 @@ import (
 func init() {
 	// upd global var for testing
 	// we use patched version of gopkg.in/telegram-bot-api.v4 ( WebhookURL const -> var)
-	WebhookURL = "http://127.0.0.1:8081"
+	WebhookURL = "http://127.0.0.1:8080"
 	BotToken = "_golangcourse_test"
 }
 
@@ -202,6 +202,7 @@ func TestTasks(t *testing.T) {
 
 	// give server time to start
 	time.Sleep(100 * time.Millisecond)
+	time.Sleep(5 * time.Second)
 
 	cases := []testCase{
 		{
