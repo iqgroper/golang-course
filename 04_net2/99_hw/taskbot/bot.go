@@ -44,6 +44,7 @@ func (tsk *Task) HasAssignee() bool {
 type TaskList struct {
 	TaskList   []Task
 	LastTaskId uint
+	Length     int
 }
 
 type TaskListPrint struct {
@@ -66,6 +67,7 @@ func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI)
 		Id:       taskList.LastTaskId,
 	}
 	taskList.TaskList = append(taskList.TaskList, newTask)
+	taskList.Length += 1
 
 	tmpl := template.New("")
 	tmpl, _ = tmpl.Parse(NewTaskTenplate)
@@ -80,22 +82,27 @@ func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI)
 
 }
 
-const taskTemplate = `
-{{$init_var := .}}
-{{range .TaskLst.TaskList}}
-	{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
-	{{if .HasAssignee }}
-		{{if (eq $init_var.Caller.UserName  .Assignee.TgUser.UserName)}}
-			assignee: я
-			/unassign_{{.Id}} /resolve_{{.Id}}
-		{{else}}
-			assignee: @{{.Assignee.TgUser.UserName}}
-		{{end}}
-	{{else}}
-		/assign_{{.Id}}
-	{{end}}
-{{end}}
-`
+// const taskTemplate = `
+// {{$init_var := .}}
+// {{range $index, $value := .TaskLst.TaskList}}
+// 	{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+// 	{{if $value.HasAssignee }}
+// 		{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}
+// 			assignee: я
+// 			/unassign_{{$value.Id}} /resolve_{{$value.Id}}
+// 		{{else}}
+// 			assignee: @{{$value.Assignee.TgUser.UserName}}
+// 		{{end}}
+// 	{{else}}
+// 		/assign_{{$value.Id}}
+// 	{{end}}
+// {{end}}`
+
+const taskTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+{{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}assignee: я
+/unassign_{{$value.Id}} /resolve_{{$value.Id}}{{else}}assignee: @{{$value.Assignee.TgUser.UserName}}{{end}}{{else}}/assign_{{$value.Id}}{{end}}{{if (ne $index $init_var.TaskLst.Length)}}
+
+{{end}}{{end}}`
 
 func TaskMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 	if len(taskList.TaskList) == 0 {
@@ -138,11 +145,20 @@ func UnAssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.Bo
 	for i := 0; i < len(taskList.TaskList); i++ {
 		if taskList.TaskList[i].Id == uint(taskId) {
 
-			if taskList.TaskList[i].Assignee != nil && taskList.TaskList[i].Assignee.TgUser.ID == update.Message.From.ID {
+			if taskList.TaskList[i].Assignee != nil {
+
+				if taskList.TaskList[i].Assignee.TgUser.ID != update.Message.From.ID {
+					msg := tgbotapi.NewMessage(
+						update.FromChat().ID,
+						"Задача не на вас")
+
+					bot.Send(msg)
+					return
+				}
 
 				msg := tgbotapi.NewMessage(
 					taskList.TaskList[i].Assignee.UserChatId,
-					"Задача не на вас")
+					"Принято")
 
 				bot.Send(msg)
 
@@ -173,6 +189,11 @@ func AssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotA
 			if taskList.TaskList[i].Assignee != nil {
 				msg := tgbotapi.NewMessage(
 					taskList.TaskList[i].Assignee.UserChatId,
+					fmt.Sprintf("Задача \"%s\" назначена на @%s", taskList.TaskList[i].Text, update.Message.From.UserName))
+				bot.Send(msg)
+			} else {
+				msg := tgbotapi.NewMessage(
+					taskList.TaskList[i].Owner.UserChatId,
 					fmt.Sprintf("Задача \"%s\" назначена на @%s", taskList.TaskList[i].Text, update.Message.From.UserName))
 				bot.Send(msg)
 			}
@@ -219,22 +240,29 @@ func ResolveMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.Bot
 			newSlice := append(taskList.TaskList[:i], taskList.TaskList[i+1:]...)
 			taskList.TaskList = newSlice
 
+			taskList.Length -= 1
+
 			break
 		}
 	}
 }
 
-const MyMethodTemplate = `
-{{$init_var := .}}
-{{range .TaskLst.TaskList}}
-	{{if .HasAssignee }}
-		{{if (eq $init_var.Caller.UserName  .Assignee.TgUser.UserName)}}
-			{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
-			/unassign_{{.Id}} /resolve_{{.Id}}
-		{{end}}
-	{{end}}
-{{end}}
-`
+// const MyMethodTemplate = `
+// {{$init_var := .}}
+// {{range .TaskLst.TaskList}}
+// 	{{if .HasAssignee }}
+// 		{{if (eq $init_var.Caller.UserName  .Assignee.TgUser.UserName)}}
+// 			{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
+// 			/unassign_{{.Id}} /resolve_{{.Id}}
+// 		{{end}}
+// 	{{end}}
+// {{end}}
+// `
+
+const MyMethodTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+/unassign_{{$value.Id}} /resolve_{{$value.Id}}{{end}}{{end}}{{if (ne $index $init_var.TaskLst.Length)}}
+
+{{end}}{{end}}`
 
 func MyMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
@@ -257,14 +285,18 @@ func MyMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) 
 	bot.Send(msg)
 }
 
-const OwnerTemplate = `
-{{$init_var := .}}
-{{range .TaskLst.TaskList}}
-	{{if (eq $init_var.Caller.UserName  .Owner.TgUser.UserName)}}
-		{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
-		/assign_{{.Id}}
-	{{end}}
-{{end}}
+// const OwnerTemplate = `
+// {{$init_var := .}}
+// {{range .TaskLst.TaskList}}
+// 	{{if (eq $init_var.Caller.UserName  .Owner.TgUser.UserName)}}
+// 		{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
+// 		/assign_{{.Id}}
+// 	{{end}}
+// {{end}}
+// `
+
+const OwnerTemplate = `{{$init_var := .}}{{range .TaskLst.TaskList}}{{if (eq $init_var.Caller.UserName  .Owner.TgUser.UserName)}}{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
+/assign_{{.Id}}{{end}}{{end}}
 `
 
 func OwnerMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
@@ -312,7 +344,7 @@ func startTaskBot(ctx context.Context) error {
 	}()
 	fmt.Println("start listen :" + port)
 
-	taskList := &TaskList{}
+	taskList := &TaskList{Length: -1}
 
 	for update := range updates {
 
@@ -346,6 +378,11 @@ func startTaskBot(ctx context.Context) error {
 		case strings.Contains(requestMethod, "/owner"):
 			fmt.Println("/OWNER", update.Message.Text)
 			OwnerMethod(update, taskList, bot)
+		case strings.Contains(requestMethod, "/start"):
+			msg := tgbotapi.NewMessage(
+				update.Message.Chat.ID,
+				"Privet")
+			bot.Send(msg)
 		default:
 			msg := tgbotapi.NewMessage(
 				update.Message.Chat.ID,
