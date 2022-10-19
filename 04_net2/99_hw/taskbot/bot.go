@@ -25,14 +25,14 @@ var (
 
 type User struct {
 	TgUser     *tgbotapi.User
-	UserChatId int64
+	UserChatID int64
 }
 
 type Task struct {
 	Text     string
 	Assignee *User
 	Owner    *User
-	Id       uint
+	ID       uint
 	Done     bool
 }
 
@@ -42,7 +42,7 @@ func (tsk *Task) HasAssignee() bool {
 
 type TaskList struct {
 	TaskList   []Task
-	LastTaskId uint
+	LastTaskID uint
 }
 
 type TaskListPrint struct {
@@ -50,32 +50,42 @@ type TaskListPrint struct {
 	Caller  *tgbotapi.User
 }
 
-const NewTaskTenplate = `Задача "{{.Text}}" создана, id={{.Id}}`
+const NewTaskTenplate = `Задача "{{.Text}}" создана, id={{.ID}}`
 
 func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
 	taskText := strings.SplitAfter(update.Message.Text, "/new ")[1]
 
-	taskList.LastTaskId += 1
+	taskList.LastTaskID += 1
 
 	newTask := Task{
 		Text:     taskText,
 		Owner:    &User{update.Message.From, update.FromChat().ChatConfig().ChatID},
 		Assignee: nil,
-		Id:       taskList.LastTaskId,
+		ID:       taskList.LastTaskID,
 	}
 	taskList.TaskList = append(taskList.TaskList, newTask)
 
 	tmpl := template.New("")
-	tmpl, _ = tmpl.Parse(NewTaskTenplate)
+	tmpl, errParse := tmpl.Parse(NewTaskTenplate)
+	if errParse != nil {
+		fmt.Println("Error parsing New method", errParse)
+	}
 	var resp bytes.Buffer
 
-	tmpl.Execute(&resp, newTask)
+	err := tmpl.Execute(&resp, newTask)
+	if err != nil {
+		fmt.Println("Error executing template in MyMethod:", err)
+		return
+	}
 
 	msg := tgbotapi.NewMessage(
 		update.Message.Chat.ID,
 		resp.String())
-	bot.Send(msg)
+	_, errorBot := bot.Send(msg)
+	if errorBot != nil {
+		fmt.Println("Error sending massege", errorBot)
+	}
 
 }
 
@@ -97,21 +107,27 @@ func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI)
 
 const taskTemplate = `{{$init_var := .}}{{$first_occ := 1}}{{range $index, $value := .TaskLst.TaskList}}{{if $first_occ}}{{$first_occ = 0}}{{else}}
 
-{{end}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+{{end}}{{$value.ID}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
 {{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}assignee: я
-/unassign_{{$value.Id}} /resolve_{{$value.Id}}{{else}}assignee: @{{$value.Assignee.TgUser.UserName}}{{end}}{{else}}/assign_{{$value.Id}}{{end}}{{end}}`
+/unassign_{{$value.ID}} /resolve_{{$value.ID}}{{else}}assignee: @{{$value.Assignee.TgUser.UserName}}{{end}}{{else}}/assign_{{$value.ID}}{{end}}{{end}}`
 
 func TaskMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 	if len(taskList.TaskList) == 0 {
 		msg := tgbotapi.NewMessage(
 			update.Message.Chat.ID,
 			"Нет задач")
-		bot.Send(msg)
+		_, errorBot := bot.Send(msg)
+		if errorBot != nil {
+			fmt.Println("Error sending massege", errorBot)
+		}
 		return
 	}
 
 	tmpl := template.New("")
-	tmpl, _ = tmpl.Parse(taskTemplate)
+	tmpl, errParse := tmpl.Parse(taskTemplate)
+	if errParse != nil {
+		fmt.Println("Reeor parsing task method", errParse)
+	}
 	var resp bytes.Buffer
 
 	err := tmpl.Execute(&resp, TaskListPrint{
@@ -128,19 +144,22 @@ func TaskMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI
 	msg := tgbotapi.NewMessage(
 		update.Message.Chat.ID,
 		resp.String())
-	bot.Send(msg)
+	_, errorBot := bot.Send(msg)
+	if errorBot != nil {
+		fmt.Println("Error sending massege", errorBot)
+	}
 }
 
 func UnAssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
-	taskIdStr := strings.Split(update.Message.Text, "_")[1]
-	taskId, err := strconv.Atoi(taskIdStr)
+	taskIDStr := strings.Split(update.Message.Text, "_")[1]
+	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
 		fmt.Println("error casting string to int in UnAssignMethod")
 	}
 
 	for i := 0; i < len(taskList.TaskList); i++ {
-		if taskList.TaskList[i].Id == uint(taskId) {
+		if taskList.TaskList[i].ID == uint(taskID) {
 
 			if taskList.TaskList[i].Assignee != nil {
 
@@ -149,21 +168,30 @@ func UnAssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.Bo
 						update.FromChat().ID,
 						"Задача не на вас")
 
-					bot.Send(msg)
+					_, errorBot := bot.Send(msg)
+					if errorBot != nil {
+						fmt.Println("Error sending massege", errorBot)
+					}
 					return
 				}
 
 				msg := tgbotapi.NewMessage(
-					taskList.TaskList[i].Assignee.UserChatId,
+					taskList.TaskList[i].Assignee.UserChatID,
 					"Принято")
 
-				bot.Send(msg)
+				_, errorBot := bot.Send(msg)
+				if errorBot != nil {
+					fmt.Println("Error sending massege", errorBot)
+				}
 
 				msgOwner := tgbotapi.NewMessage(
-					taskList.TaskList[i].Owner.UserChatId,
+					taskList.TaskList[i].Owner.UserChatID,
 					fmt.Sprintf("Задача \"%s\" осталась без исполнителя", taskList.TaskList[i].Text))
 
-				bot.Send(msgOwner)
+				_, errorBot2 := bot.Send(msgOwner)
+				if errorBot != nil {
+					fmt.Println("Error sending massege", errorBot2)
+				}
 				taskList.TaskList[i].Assignee = nil
 				break
 			}
@@ -174,36 +202,45 @@ func UnAssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.Bo
 
 func AssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
-	taskIdStr := strings.Split(update.Message.Text, "_")[1]
-	taskId, err := strconv.Atoi(taskIdStr)
+	taskIDStr := strings.Split(update.Message.Text, "_")[1]
+	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
 		fmt.Println("error casting string to int in AssignMethod")
 	}
 
 	for i := 0; i < len(taskList.TaskList); i++ {
-		if taskList.TaskList[i].Id == uint(taskId) {
+		if taskList.TaskList[i].ID == uint(taskID) {
 
 			if taskList.TaskList[i].Assignee != nil {
 				msg := tgbotapi.NewMessage(
-					taskList.TaskList[i].Assignee.UserChatId,
+					taskList.TaskList[i].Assignee.UserChatID,
 					fmt.Sprintf("Задача \"%s\" назначена на @%s", taskList.TaskList[i].Text, update.Message.From.UserName))
-				bot.Send(msg)
+				_, errorBot := bot.Send(msg)
+				if errorBot != nil {
+					fmt.Println("Error sending massege", errorBot)
+				}
 			} else {
 				msg := tgbotapi.NewMessage(
-					taskList.TaskList[i].Owner.UserChatId,
+					taskList.TaskList[i].Owner.UserChatID,
 					fmt.Sprintf("Задача \"%s\" назначена на @%s", taskList.TaskList[i].Text, update.Message.From.UserName))
-				bot.Send(msg)
+				_, errorBot := bot.Send(msg)
+				if errorBot != nil {
+					fmt.Println("Error sending massege", errorBot)
+				}
 			}
 
 			taskList.TaskList[i].Assignee = &User{
 				TgUser:     update.SentFrom(),
-				UserChatId: update.FromChat().ChatConfig().ChatID,
+				UserChatID: update.FromChat().ChatConfig().ChatID,
 			}
 
 			msg := tgbotapi.NewMessage(
 				update.Message.Chat.ID,
 				fmt.Sprintf("Задача \"%s\" назначена на вас", taskList.TaskList[i].Text))
-			bot.Send(msg)
+			_, errorBot := bot.Send(msg)
+			if errorBot != nil {
+				fmt.Println("Error sending massege", errorBot)
+			}
 
 			break
 		}
@@ -212,30 +249,35 @@ func AssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotA
 
 func ResolveMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
-	taskIdStr := strings.Split(update.Message.Text, "_")[1]
-	taskId, err := strconv.Atoi(taskIdStr)
+	taskIDStr := strings.Split(update.Message.Text, "_")[1]
+	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
 		fmt.Println("error casting string to int in ResolveMethod")
 		return
 	}
 
 	for i := 0; i < len(taskList.TaskList); i++ {
-		if taskList.TaskList[i].Id == uint(taskId) {
+		if taskList.TaskList[i].ID == uint(taskID) {
 
 			msg := tgbotapi.NewMessage(
-				taskList.TaskList[i].Assignee.UserChatId,
+				taskList.TaskList[i].Assignee.UserChatID,
 				fmt.Sprintf("Задача \"%s\" выполнена", taskList.TaskList[i].Text))
 
-			bot.Send(msg)
+			_, errorBot := bot.Send(msg)
+			if errorBot != nil {
+				fmt.Println("Error sending massege", errorBot)
+			}
 
 			msgOwner := tgbotapi.NewMessage(
-				taskList.TaskList[i].Owner.UserChatId,
+				taskList.TaskList[i].Owner.UserChatID,
 				fmt.Sprintf("Задача \"%s\" выполнена @%s", taskList.TaskList[i].Text, taskList.TaskList[i].Assignee.TgUser.UserName))
 
-			bot.Send(msgOwner)
+			_, errorBot2 := bot.Send(msgOwner)
+			if errorBot2 != nil {
+				fmt.Println("Error sending massege", errorBot2.Error())
+			}
 
-			newSlice := append(taskList.TaskList[:i], taskList.TaskList[i+1:]...)
-			taskList.TaskList = newSlice
+			taskList.TaskList = append(taskList.TaskList[:i], taskList.TaskList[i+1:]...)
 
 			break
 		}
@@ -257,13 +299,16 @@ func ResolveMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.Bot
 
 const MyMethodTemplate = `{{$init_var := .}}{{$first_occ := 1}}{{range $index, $value := .TaskLst.TaskList}}{{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}{{if $first_occ}}{{$first_occ = 0}}{{else}}
 
-{{end}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
-/unassign_{{$value.Id}} /resolve_{{$value.Id}}{{end}}{{end}}{{end}}`
+{{end}}{{$value.ID}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+/unassign_{{$value.ID}} /resolve_{{$value.ID}}{{end}}{{end}}{{end}}`
 
 func MyMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
 	tmpl := template.New("")
-	tmpl, _ = tmpl.Parse(MyMethodTemplate)
+	tmpl, errParse := tmpl.Parse(MyMethodTemplate)
+	if errParse != nil {
+		fmt.Println("Error parsing Owner tempalte", errParse)
+	}
 	var resp bytes.Buffer
 
 	err := tmpl.Execute(&resp, TaskListPrint{
@@ -278,7 +323,10 @@ func MyMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) 
 	msg := tgbotapi.NewMessage(
 		update.Message.Chat.ID,
 		resp.String())
-	bot.Send(msg)
+	_, errorBot := bot.Send(msg)
+	if errorBot != nil {
+		fmt.Println("Error sending massege", errorBot)
+	}
 }
 
 // const OwnerTemplate = `
@@ -300,16 +348,19 @@ func MyMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) 
 
 const OwnerTemplate = `{{$init_var := .}}{{$first_occ := 1}}{{range $index, $value := .TaskLst.TaskList}}{{if (eq $init_var.Caller.UserName  $value.Owner.TgUser.UserName)}}{{if $first_occ}}{{$first_occ = 0}}{{else}}
 
-{{end}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
-/assign_{{$value.Id}}{{end}}{{end}}`
+{{end}}{{$value.ID}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+/assign_{{$value.ID}}{{end}}{{end}}`
 
 func OwnerMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
-	tmpl := template.New("")
-	tmpl, _ = tmpl.Parse(OwnerTemplate)
+	tmplt := template.New("")
+	_, errParse := tmplt.Parse(OwnerTemplate)
+	if errParse != nil {
+		fmt.Println("Error parsing Owner tempalte", errParse)
+	}
 	var resp bytes.Buffer
 
-	err := tmpl.Execute(&resp, TaskListPrint{
+	err := tmplt.Execute(&resp, TaskListPrint{
 		TaskLst: taskList,
 		Caller:  update.Message.From,
 	})
@@ -321,7 +372,10 @@ func OwnerMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAP
 	msg := tgbotapi.NewMessage(
 		update.Message.Chat.ID,
 		resp.String())
-	bot.Send(msg)
+	_, errorBot := bot.Send(msg)
+	if errorBot != nil {
+		fmt.Println("Error sending massege", errorBot)
+	}
 }
 
 func startTaskBot(ctx context.Context) error {
@@ -356,42 +410,41 @@ func startTaskBot(ctx context.Context) error {
 
 		switch {
 		case strings.Contains(requestMethod, "/new"):
-			fmt.Println("/new", update.Message.Text)
 			NewMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/tasks"):
-			fmt.Println("/tasks", update.Message.Text)
 			TaskMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/assign"):
-			fmt.Println("/assign", update.Message.Text)
 			AssignMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/unassign"):
-			fmt.Println("/unassing", update.Message.Text)
 			UnAssignMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/resolve"):
-			fmt.Println("/resolve", update.Message.Text)
 			ResolveMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/my"):
-			fmt.Println("/MY", update.Message.Text)
 			MyMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/owner"):
-			fmt.Println("/OWNER", update.Message.Text)
 			OwnerMethod(update, taskList, bot)
 		case strings.Contains(requestMethod, "/start"):
 			msg := tgbotapi.NewMessage(
 				update.Message.Chat.ID,
 				"Privet")
-			bot.Send(msg)
+			_, errorBot := bot.Send(msg)
+			if errorBot != nil {
+				fmt.Println("Error sending massege", errorBot)
+			}
 		default:
 			msg := tgbotapi.NewMessage(
 				update.Message.Chat.ID,
 				"wrong api hit, try..")
-			bot.Send(msg)
+			_, errorBot := bot.Send(msg)
+			if errorBot != nil {
+				fmt.Println("Error sending massege", errorBot)
+			}
 		}
 
 	}
