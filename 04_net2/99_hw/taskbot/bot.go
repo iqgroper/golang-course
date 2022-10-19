@@ -20,7 +20,7 @@ var (
 	BotToken = "5440179369:AAEPil19XVCOgmtDOE7d0J94xxGBKlpuSF0"
 
 	// урл выдаст вам игрок или хероку
-	WebhookURL = "https://d4bb-79-139-208-249.ngrok.io"
+	WebhookURL = "https://a3ec-79-139-208-249.ngrok.io"
 )
 
 type User struct {
@@ -98,7 +98,7 @@ const taskTemplate = `
 `
 
 func TaskMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
-	if taskList.LastTaskId == 0 {
+	if len(taskList.TaskList) == 0 {
 		msg := tgbotapi.NewMessage(
 			update.Message.Chat.ID,
 			"Нет задач")
@@ -116,6 +116,7 @@ func TaskMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI
 	})
 	if err != nil {
 		fmt.Println("Error executing template in TaskMethod:", err)
+		return
 	}
 
 	fmt.Println(resp.String())
@@ -124,6 +125,38 @@ func TaskMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI
 		update.Message.Chat.ID,
 		resp.String())
 	bot.Send(msg)
+}
+
+func UnAssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
+
+	taskIdStr := strings.Split(update.Message.Text, "_")[1]
+	taskId, err := strconv.Atoi(taskIdStr)
+	if err != nil {
+		fmt.Println("error casting string to int in UnAssignMethod")
+	}
+
+	for i := 0; i < len(taskList.TaskList); i++ {
+		if taskList.TaskList[i].Id == uint(taskId) {
+
+			if taskList.TaskList[i].Assignee != nil && taskList.TaskList[i].Assignee.TgUser.ID == update.Message.From.ID {
+
+				msg := tgbotapi.NewMessage(
+					taskList.TaskList[i].Assignee.UserChatId,
+					"Задача не на вас")
+
+				bot.Send(msg)
+
+				msgOwner := tgbotapi.NewMessage(
+					taskList.TaskList[i].Owner.UserChatId,
+					fmt.Sprintf("Задача \"%s\" осталась без исполнителя", taskList.TaskList[i].Text))
+
+				bot.Send(msgOwner)
+				taskList.TaskList[i].Assignee = nil
+				break
+			}
+
+		}
+	}
 }
 
 func AssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
@@ -137,7 +170,6 @@ func AssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotA
 	for i := 0; i < len(taskList.TaskList); i++ {
 		if taskList.TaskList[i].Id == uint(taskId) {
 
-			fmt.Println("task.Assignee", taskList.TaskList[i].Assignee)
 			if taskList.TaskList[i].Assignee != nil {
 				msg := tgbotapi.NewMessage(
 					taskList.TaskList[i].Assignee.UserChatId,
@@ -160,36 +192,100 @@ func AssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotA
 	}
 }
 
-func UnAssignMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
+func ResolveMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
 	taskIdStr := strings.Split(update.Message.Text, "_")[1]
 	taskId, err := strconv.Atoi(taskIdStr)
 	if err != nil {
-		fmt.Println("error casting string to int in AssignMethod")
+		fmt.Println("error casting string to int in ResolveMethod")
+		return
 	}
 
-	for _, task := range taskList.TaskList {
-		if task.Id == uint(taskId) {
-			// if task.Assignee != nil {
-			// 	msg := tgbotapi.NewMessage(
-			// 		task.Assignee.TgUser.ID,
-			// 		fmt.Sprintf("Задача \"%s\" назначена на @%s", task.Text, update.Message.From.UserName))
-			// 	bot.Send(msg)
-			// }
+	for i := 0; i < len(taskList.TaskList); i++ {
+		if taskList.TaskList[i].Id == uint(taskId) {
 
-			task.Assignee = nil
 			msg := tgbotapi.NewMessage(
-				update.Message.Chat.ID,
-				fmt.Sprintf("Задача \"%s\" назначена на вас", task.Text))
+				taskList.TaskList[i].Assignee.UserChatId,
+				fmt.Sprintf("Задача \"%s\" выполнена", taskList.TaskList[i].Text))
+
 			bot.Send(msg)
+
+			msgOwner := tgbotapi.NewMessage(
+				taskList.TaskList[i].Owner.UserChatId,
+				fmt.Sprintf("Задача \"%s\" выполнена @%s", taskList.TaskList[i].Text, taskList.TaskList[i].Assignee.TgUser.UserName))
+
+			bot.Send(msgOwner)
+
+			newSlice := append(taskList.TaskList[:i], taskList.TaskList[i+1:]...)
+			taskList.TaskList = newSlice
 
 			break
 		}
 	}
 }
 
-func ResolveMethod(command string) {
+const MyMethodTemplate = `
+{{$init_var := .}}
+{{range .TaskLst.TaskList}}
+	{{if .HasAssignee }}
+		{{if (eq $init_var.Caller.UserName  .Assignee.TgUser.UserName)}}
+			{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
+			/unassign_{{.Id}} /resolve_{{.Id}}
+		{{end}}
+	{{end}}
+{{end}}
+`
 
+func MyMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
+
+	tmpl := template.New("")
+	tmpl, _ = tmpl.Parse(MyMethodTemplate)
+	var resp bytes.Buffer
+
+	err := tmpl.Execute(&resp, TaskListPrint{
+		TaskLst: taskList,
+		Caller:  update.Message.From,
+	})
+	if err != nil {
+		fmt.Println("Error executing template in MyMethod:", err)
+		return
+	}
+
+	msg := tgbotapi.NewMessage(
+		update.Message.Chat.ID,
+		resp.String())
+	bot.Send(msg)
+}
+
+const OwnerTemplate = `
+{{$init_var := .}}
+{{range .TaskLst.TaskList}}
+	{{if (eq $init_var.Caller.UserName  .Owner.TgUser.UserName)}}
+		{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
+		/assign_{{.Id}}
+	{{end}}
+{{end}}
+`
+
+func OwnerMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
+
+	tmpl := template.New("")
+	tmpl, _ = tmpl.Parse(OwnerTemplate)
+	var resp bytes.Buffer
+
+	err := tmpl.Execute(&resp, TaskListPrint{
+		TaskLst: taskList,
+		Caller:  update.Message.From,
+	})
+	if err != nil {
+		fmt.Println("Error executing template in OwnerMethod:", err)
+		return
+	}
+
+	msg := tgbotapi.NewMessage(
+		update.Message.Chat.ID,
+		resp.String())
+	bot.Send(msg)
 }
 
 func startTaskBot(ctx context.Context) error {
@@ -210,7 +306,7 @@ func startTaskBot(ctx context.Context) error {
 
 	updates := bot.ListenForWebhook("/")
 
-	port := "8081"
+	port := "8080"
 	go func() {
 		log.Fatalln("http err:", http.ListenAndServe(":"+port, nil))
 	}()
@@ -237,20 +333,19 @@ func startTaskBot(ctx context.Context) error {
 
 		case strings.Contains(requestMethod, "/unassign"):
 			fmt.Println("/unassing", update.Message.Text)
-			AssignMethod(update, taskList, bot)
+			UnAssignMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/resolve"):
 			fmt.Println("/resolve", update.Message.Text)
-			ResolveMethod(requestMethod)
+			ResolveMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/my"):
 			fmt.Println("/MY", update.Message.Text)
-			TaskMethod(update, taskList, bot)
+			MyMethod(update, taskList, bot)
 
 		case strings.Contains(requestMethod, "/owner"):
 			fmt.Println("/OWNER", update.Message.Text)
-			TaskMethod(update, taskList, bot)
-
+			OwnerMethod(update, taskList, bot)
 		default:
 			msg := tgbotapi.NewMessage(
 				update.Message.Chat.ID,
