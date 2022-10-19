@@ -20,7 +20,7 @@ var (
 	BotToken = "5440179369:AAEPil19XVCOgmtDOE7d0J94xxGBKlpuSF0"
 
 	// урл выдаст вам игрок или хероку
-	WebhookURL = "https://35be-79-139-208-249.ngrok.io"
+	WebhookURL = "https://0461-79-139-208-249.ngrok.io"
 )
 
 type User struct {
@@ -54,7 +54,14 @@ const NewTaskTenplate = `Задача "{{.Text}}" создана, id={{.ID}}`
 
 func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
-	taskText := strings.SplitAfter(update.Message.Text, "/new ")[1]
+	taskTextList := strings.SplitAfter(update.Message.Text, "/new ")
+
+	if len(taskTextList) < 2 {
+		fmt.Println("Blank task")
+		return
+	}
+
+	taskText := taskTextList[1]
 
 	taskList.LastTaskID += 1
 
