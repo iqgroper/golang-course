@@ -20,7 +20,7 @@ var (
 	BotToken = "5440179369:AAEPil19XVCOgmtDOE7d0J94xxGBKlpuSF0"
 
 	// урл выдаст вам игрок или хероку
-	WebhookURL = "https://a3ec-79-139-208-249.ngrok.io"
+	WebhookURL = "https://35be-79-139-208-249.ngrok.io"
 )
 
 type User struct {
@@ -44,7 +44,6 @@ func (tsk *Task) HasAssignee() bool {
 type TaskList struct {
 	TaskList   []Task
 	LastTaskId uint
-	Length     int
 }
 
 type TaskListPrint struct {
@@ -67,7 +66,6 @@ func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI)
 		Id:       taskList.LastTaskId,
 	}
 	taskList.TaskList = append(taskList.TaskList, newTask)
-	taskList.Length += 1
 
 	tmpl := template.New("")
 	tmpl, _ = tmpl.Parse(NewTaskTenplate)
@@ -98,11 +96,11 @@ func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI)
 // 	{{end}}
 // {{end}}`
 
-const taskTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
-{{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}assignee: я
-/unassign_{{$value.Id}} /resolve_{{$value.Id}}{{else}}assignee: @{{$value.Assignee.TgUser.UserName}}{{end}}{{else}}/assign_{{$value.Id}}{{end}}{{if (ne $index $init_var.TaskLst.Length)}}
+const taskTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{if (ne $index 0)}}
 
-{{end}}{{end}}`
+{{end}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+{{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}assignee: я
+/unassign_{{$value.Id}} /resolve_{{$value.Id}}{{else}}assignee: @{{$value.Assignee.TgUser.UserName}}{{end}}{{else}}/assign_{{$value.Id}}{{end}}{{end}}`
 
 func TaskMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 	if len(taskList.TaskList) == 0 {
@@ -240,8 +238,6 @@ func ResolveMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.Bot
 			newSlice := append(taskList.TaskList[:i], taskList.TaskList[i+1:]...)
 			taskList.TaskList = newSlice
 
-			taskList.Length -= 1
-
 			break
 		}
 	}
@@ -249,20 +245,21 @@ func ResolveMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.Bot
 
 // const MyMethodTemplate = `
 // {{$init_var := .}}
-// {{range .TaskLst.TaskList}}
-// 	{{if .HasAssignee }}
-// 		{{if (eq $init_var.Caller.UserName  .Assignee.TgUser.UserName)}}
-// 			{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
-// 			/unassign_{{.Id}} /resolve_{{.Id}}
+// {{range $index, $value := .TaskLst.TaskList}}
+// 	{{if $value.HasAssignee }}
+// 		{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}
+
+// 			{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+// 			/unassign_{{$value.Id}} /resolve_{{$value.Id}}
 // 		{{end}}
 // 	{{end}}
 // {{end}}
 // `
 
-const MyMethodTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
-/unassign_{{$value.Id}} /resolve_{{$value.Id}}{{end}}{{end}}{{if (ne $index $init_var.TaskLst.Length)}}
+const MyMethodTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}{{if (ne $index 0)}}
 
-{{end}}{{end}}`
+{{end}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+/unassign_{{$value.Id}} /resolve_{{$value.Id}}{{end}}{{end}}{{end}}`
 
 func MyMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
@@ -295,9 +292,10 @@ func MyMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) 
 // {{end}}
 // `
 
-const OwnerTemplate = `{{$init_var := .}}{{range .TaskLst.TaskList}}{{if (eq $init_var.Caller.UserName  .Owner.TgUser.UserName)}}{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
-/assign_{{.Id}}{{end}}{{end}}
-`
+const OwnerTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{if (eq $init_var.Caller.UserName  $value.Owner.TgUser.UserName)}}{{if (ne $index 0)}}
+
+{{end}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+/assign_{{$value.Id}}{{end}}{{end}}`
 
 func OwnerMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) {
 
@@ -338,13 +336,13 @@ func startTaskBot(ctx context.Context) error {
 
 	updates := bot.ListenForWebhook("/")
 
-	port := "8080"
+	port := "8081"
 	go func() {
 		log.Fatalln("http err:", http.ListenAndServe(":"+port, nil))
 	}()
 	fmt.Println("start listen :" + port)
 
-	taskList := &TaskList{Length: -1}
+	taskList := &TaskList{}
 
 	for update := range updates {
 
