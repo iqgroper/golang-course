@@ -37,7 +37,6 @@ type Task struct {
 }
 
 func (tsk *Task) HasAssignee() bool {
-
 	return tsk.Assignee != nil
 }
 
@@ -96,7 +95,7 @@ func NewMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI)
 // 	{{end}}
 // {{end}}`
 
-const taskTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{if (ne $index 0)}}
+const taskTemplate = `{{$init_var := .}}{{$first_occ := 1}}{{range $index, $value := .TaskLst.TaskList}}{{if $first_occ}}{{$first_occ = 0}}{{else}}
 
 {{end}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
 {{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}assignee: я
@@ -256,7 +255,7 @@ func ResolveMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.Bot
 // {{end}}
 // `
 
-const MyMethodTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}{{if (ne $index 0)}}
+const MyMethodTemplate = `{{$init_var := .}}{{$first_occ := 1}}{{range $index, $value := .TaskLst.TaskList}}{{if $value.HasAssignee }}{{if (eq $init_var.Caller.UserName  $value.Assignee.TgUser.UserName)}}{{if $first_occ}}{{$first_occ = 0}}{{else}}
 
 {{end}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
 /unassign_{{$value.Id}} /resolve_{{$value.Id}}{{end}}{{end}}{{end}}`
@@ -284,15 +283,22 @@ func MyMethod(update tgbotapi.Update, taskList *TaskList, bot *tgbotapi.BotAPI) 
 
 // const OwnerTemplate = `
 // {{$init_var := .}}
-// {{range .TaskLst.TaskList}}
-// 	{{if (eq $init_var.Caller.UserName  .Owner.TgUser.UserName)}}
-// 		{{.Id}}. {{.Text}} by @{{.Owner.TgUser.UserName}}
-// 		/assign_{{.Id}}
+// {{$first_occ := 1}}
+// {{range $index, $value := .TaskLst.TaskList}}
+// 	{{if (eq $init_var.Caller.UserName  $value.Owner.TgUser.UserName)}}
+// 	{{if $first_occ}}
+// 		no new line
+// 		{{$first_occ = 0 }}
+// 	{{else}}
+// 		new line
+// 	{{end}}
+// 		{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
+// 		/assign_{{$value.Id}}
 // 	{{end}}
 // {{end}}
 // `
 
-const OwnerTemplate = `{{$init_var := .}}{{range $index, $value := .TaskLst.TaskList}}{{if (eq $init_var.Caller.UserName  $value.Owner.TgUser.UserName)}}{{if (ne $index 0)}}
+const OwnerTemplate = `{{$init_var := .}}{{$first_occ := 1}}{{range $index, $value := .TaskLst.TaskList}}{{if (eq $init_var.Caller.UserName  $value.Owner.TgUser.UserName)}}{{if $first_occ}}{{$first_occ = 0}}{{else}}
 
 {{end}}{{$value.Id}}. {{$value.Text}} by @{{$value.Owner.TgUser.UserName}}
 /assign_{{$value.Id}}{{end}}{{end}}`
