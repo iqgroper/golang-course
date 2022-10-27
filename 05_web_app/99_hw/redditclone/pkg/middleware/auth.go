@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"crudapp/pkg/session"
+	"redditclone/pkg/session"
 )
 
 var (
@@ -27,7 +27,7 @@ func Auth(sm *session.SessionsManager, next http.Handler) http.Handler {
 		_, canbeWithouthSess := noSessUrls[r.URL.Path]
 		if err != nil && !canbeWithouthSess {
 			fmt.Println("no auth")
-			http.Redirect(w, r, "/", 302)
+			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
 		ctx := session.ContextWithSession(r.Context(), sess)

@@ -2,29 +2,53 @@ package session
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
+	"redditclone/pkg/user"
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	log "github.com/sirupsen/logrus"
+)
+
+var (
+	ExampleTokenSecret = "secret"
 )
 
 type Session struct {
-	ID     string
-	UserID uint32
+	ID      string
+	User    *user.User
+	Iat     time.Time
+	Expires time.Time
 }
 
-func NewSession(userID uint32) *Session {
-	// лучше генерировать из заданного алфавита, но так писать меньше и для учебного примера ОК
-	randID := make([]byte, 16)
-	rand.Read(randID)
+func NewSession(user *user.User) *Session {
+
+	iat := time.Now()
+	expires := time.Now().Add(90 * 24 * time.Hour)
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user": fmt.Sprintf(`{"username": %s, "id": %d}`, user.Login, user.ID),
+		"iat":  iat.Unix(),
+		"exp":  expires.Unix(),
+	})
+
+	tokenString, err := token.SignedString(ExampleTokenSecret)
+	if err != nil {
+		log.Println("New Session function:", err.Error())
+		return nil
+	}
 
 	return &Session{
-		ID:     fmt.Sprintf("%x", randID),
-		UserID: userID,
+		ID:      tokenString,
+		User:    user,
+		Iat:     iat,
+		Expires: expires,
 	}
 }
 
 var (
-	ErrNoAuth = errors.New("No session found")
+	ErrNoAuth = errors.New("no session found")
 )
 
 type sessKey string

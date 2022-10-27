@@ -6,8 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"crudapp/pkg/items"
-	"crudapp/pkg/session"
+	"redditclone/pkg/session"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
