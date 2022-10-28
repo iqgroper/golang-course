@@ -12,7 +12,7 @@ type Comment struct {
 
 type CommentRepo interface {
 	// GetByID(id uint) (*Comment, error)
-	Add(item *Comment) (uint32, error)
+	Add(item *Comment) (uint, error)
 	GetAll(post_id uint) ([]*Comment, error)
 	Delete(post_id, comment_id uint) (bool, error)
 }

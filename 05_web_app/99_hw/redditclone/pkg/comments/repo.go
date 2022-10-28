@@ -21,13 +21,20 @@ func NewMemoryRepo() *CommentMemoryRepository {
 	}
 }
 
-func (repo *CommentMemoryRepository) GetAll() ([]*Comment, error) {
-	return repo.data, nil
+func (repo *CommentMemoryRepository) GetAll(post_id uint) ([]*Comment, error) {
+	result := make([]*Comment, 0, 10)
+	for _, item := range repo.data {
+		if item.PostID == post_id {
+			result = append(result, item)
+		}
+	}
+
+	return result, nil
 }
 
 func (repo *CommentMemoryRepository) Add(item *Comment) (uint, error) {
-	repo.lastID++
 	item.ID = repo.lastID
+	repo.lastID++
 
 	repo.mu.Lock()
 	repo.data = append(repo.data, item)
@@ -36,10 +43,10 @@ func (repo *CommentMemoryRepository) Add(item *Comment) (uint, error) {
 	return repo.lastID, nil
 }
 
-func (repo *CommentMemoryRepository) Delete(id uint) (bool, error) {
+func (repo *CommentMemoryRepository) Delete(post_id, comment_id uint) (bool, error) {
 	i := -1
 	for idx, item := range repo.data {
-		if item.ID == id {
+		if item.ID == comment_id && item.PostID == post_id {
 			i = idx
 			break
 		}
@@ -52,7 +59,7 @@ func (repo *CommentMemoryRepository) Delete(id uint) (bool, error) {
 	if i < len(repo.data)-1 {
 		copy(repo.data[i:], repo.data[i+1:])
 	}
-	repo.data[len(repo.data)-1] = nil // or the zero value of T
+	repo.data[len(repo.data)-1] = nil
 	repo.data = repo.data[:len(repo.data)-1]
 	repo.mu.Unlock()
 

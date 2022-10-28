@@ -21,7 +21,7 @@ type PostRepo interface {
 	Add(item *Post) (uint, error)
 	GetAllByCategory(category string) ([]*Post, error)
 	GetByID(post_id uint) (*Post, error)
-	UpVote(post_id uint) (int, error)
+	UpVote(post_id uint) (*Post, error)
 	DownVote(post_id uint) (*Post, error)
-	Delete(post_id uint) (*Post, error)
+	Delete(post_id uint) (bool, error)
 }

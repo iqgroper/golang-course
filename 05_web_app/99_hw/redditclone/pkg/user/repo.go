@@ -2,7 +2,6 @@ package user
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 )
 
@@ -33,7 +32,6 @@ func NewMemoryRepo() *UserMemoryRepository {
 }
 
 func (repo *UserMemoryRepository) Authorize(login, pass string) (*User, error) {
-	fmt.Println("login, pass:", login, pass)
 	u, ok := repo.data[login]
 	if !ok {
 		return nil, ErrNoUser

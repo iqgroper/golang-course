@@ -3,7 +3,9 @@ package main
 import (
 	"net/http"
 	"os"
+	"redditclone/pkg/comments"
 	"redditclone/pkg/handlers"
+	"redditclone/pkg/posts"
 	"redditclone/pkg/session"
 	"redditclone/pkg/user"
 
@@ -21,8 +23,8 @@ func main() {
 	logger := log.WithFields(log.Fields{})
 
 	userRepo := user.NewMemoryRepo()
-	// postsRepo := posts.NewMemoryRepo()
-	// commentsRepo := comments.NewMemoryRepo()
+	postsRepo := posts.NewMemoryRepo()
+	commentsRepo := comments.NewMemoryRepo()
 
 	userHandler := &handlers.UserHandler{
 		UserRepo: userRepo,
@@ -30,11 +32,11 @@ func main() {
 		Sessions: sm,
 	}
 
-	// postsHandler := &handlers.ItemsHandler{
-	// 	Tmpl:      templates,
-	// 	Logger:    logger,
-	// 	ItemsRepo: itemsRepo,
-	// }
+	postsHandler := &handlers.PostsHandler{
+		PostsRepo:    postsRepo,
+		CommentsRepo: commentsRepo,
+		Logger:       logger,
+	}
 
 	r := mux.NewRouter()
 
@@ -46,6 +48,7 @@ func main() {
 
 	r.HandleFunc("/api/register", userHandler.Register).Methods("POST")
 	r.HandleFunc("/api/login", userHandler.Login).Methods("POST")
+	// r.HandleFunc("/api/posts", postsHandler.).Methods("GET")
 
 	// http.Handle("/api/", http.StripPrefix("/api/", r))
 	http.Handle("/api/", r)
