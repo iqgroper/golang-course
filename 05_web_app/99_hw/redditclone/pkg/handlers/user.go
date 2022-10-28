@@ -18,12 +18,7 @@ type UserHandler struct {
 	Sessions *session.SessionsManager
 }
 
-type NewUser struct {
-	Username string
-	Password string
-}
-
-func getNameAndPass(r *http.Request) (*NewUser, error) {
+func getNameAndPass(r *http.Request) (*user.NewUser, error) {
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
@@ -32,7 +27,7 @@ func getNameAndPass(r *http.Request) (*NewUser, error) {
 		return nil, err
 	}
 
-	newUser := &NewUser{}
+	newUser := &user.NewUser{}
 	errorUnmarshal := json.Unmarshal(body, newUser)
 	if errorUnmarshal != nil {
 		fmt.Println("error unmarshling: ", errorUnmarshal.Error())

@@ -2,9 +2,12 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
+	"redditclone/pkg/user"
 
 	"redditclone/pkg/comments"
 	"redditclone/pkg/posts"
@@ -57,5 +60,73 @@ func (h *PostsHandler) GetAll(w http.ResponseWriter, r *http.Request) { //elem b
 	}
 
 	fmt.Println(resp.String())
+
+}
+
+type NewPost struct {
+	Score    int
+	Views    uint
+	Type     string
+	Title    string
+	Author   user.NewUser
+	Category string
+	Text     string
+	Votes    []struct {
+		user string
+		vote int
+	}
+	Comments         []interface{}
+	Created          string
+	UpvotePercentage int
+	ID               uint
+}
+
+func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Println("error reading body")
+		return
+	}
+
+	newPost := &NewPost{}
+	errorUnmarshal := json.Unmarshal(body, newPost)
+	if errorUnmarshal != nil {
+		fmt.Println("error unmarshling:", errorUnmarshal.Error())
+		return
+	}
+	fmt.Println(newPost)
+}
+
+func (h *PostsHandler) GetByCategory(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h *PostsHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h *PostsHandler) GetAllByUser(w http.ResponseWriter, r *http.Request) {
 
 }

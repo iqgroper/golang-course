@@ -48,7 +48,7 @@ func main() {
 
 	r.HandleFunc("/api/register", userHandler.Register).Methods("POST")
 	r.HandleFunc("/api/login", userHandler.Login).Methods("POST")
-	// r.HandleFunc("/api/posts", postsHandler.).Methods("GET")
+	r.HandleFunc("/api/posts", postsHandler.AddPost).Methods("POST")
 
 	// http.Handle("/api/", http.StripPrefix("/api/", r))
 	http.Handle("/api/", r)
