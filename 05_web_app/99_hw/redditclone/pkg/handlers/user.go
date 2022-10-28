@@ -23,20 +23,30 @@ type NewUser struct {
 	Password string
 }
 
-func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
-
+func getNameAndPass(r *http.Request) (*NewUser, error) {
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		h.Logger.Println("error reading body in Login")
+		fmt.Println("error reading body")
+		return nil, err
 	}
 
 	newUser := &NewUser{}
 	errorUnmarshal := json.Unmarshal(body, newUser)
 	if errorUnmarshal != nil {
-		h.Logger.Println("error unmarshling in Login: ", errorUnmarshal.Error())
-		http.Error(w, fmt.Sprintf(`Bad login data format: %s`, errorUnmarshal.Error()), http.StatusBadRequest)
+		fmt.Println("error unmarshling: ", errorUnmarshal.Error())
+		return nil, errorUnmarshal
+	}
+	return newUser, nil
+}
+
+func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
+
+	newUser, errGetting := getNameAndPass(r)
+	if errGetting != nil {
+		h.Logger.Println("error in Login:", errGetting.Error())
+		http.Error(w, fmt.Sprintf(`Bad Login data format: %s`, errGetting.Error()), http.StatusBadRequest)
 		return
 	}
 
@@ -52,32 +62,26 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	sess, _ := h.Sessions.Create(w, userToLogIn)
 	h.Logger.WithFields(logrus.Fields{
-		"user":   userToLogIn.Login,
-		"SessID": sess.ID,
+		"user": userToLogIn.Login,
+		"task": "logged in",
 	}).Info("Login")
 
 	w.Write([]byte(fmt.Sprintf(`{"token": "%s"}`, sess.ID)))
 }
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		h.Logger.Println("error reading body in Register")
-	}
-	h.Logger.WithFields(logrus.Fields{
-		"method": r.Method,
-		"body":   string(body),
-	}).Info("Register")
-
-	newUser := &NewUser{}
-	errorUnmarshal := json.Unmarshal(body, newUser)
-	if errorUnmarshal != nil {
-		h.Logger.Println("error unmarshling in Register: ", errorUnmarshal.Error())
-		http.Error(w, fmt.Sprintf(`Bad register data format: %s`, errorUnmarshal.Error()), http.StatusBadRequest)
+	newUser, errGetting := getNameAndPass(r)
+	if errGetting != nil {
+		h.Logger.Println("error in Login:", errGetting.Error())
+		http.Error(w, fmt.Sprintf(`Bad Login data format: %s`, errGetting.Error()), http.StatusBadRequest)
 		return
 	}
+
+	h.Logger.WithFields(logrus.Fields{
+		"method": r.Method,
+		"body":   fmt.Sprintf(`username: %s, password: %s`, newUser.Username, newUser.Password),
+	}).Info("Register")
 
 	createdUser, errRegister := h.UserRepo.Register(newUser.Username, newUser.Password)
 	if errRegister != nil {
