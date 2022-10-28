@@ -33,7 +33,7 @@ func NewSession(user *user.User) *Session {
 		"exp":  expires.Unix(),
 	})
 
-	tokenString, err := token.SignedString(ExampleTokenSecret)
+	tokenString, err := token.SignedString([]byte(ExampleTokenSecret))
 	if err != nil {
 		log.Println("New Session function:", err.Error())
 		return nil

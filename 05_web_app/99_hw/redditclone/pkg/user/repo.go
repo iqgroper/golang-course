@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -26,10 +27,13 @@ func NewMemoryRepo() *UserMemoryRepository {
 				password: "admin",
 			},
 		},
+		LastID: 0,
+		mu:     &sync.RWMutex{},
 	}
 }
 
 func (repo *UserMemoryRepository) Authorize(login, pass string) (*User, error) {
+	fmt.Println("login, pass:", login, pass)
 	u, ok := repo.data[login]
 	if !ok {
 		return nil, ErrNoUser
@@ -48,12 +52,12 @@ func (repo *UserMemoryRepository) Register(login, pass string) (*User, error) {
 		return nil, ErrUserExists
 	}
 
-	repo.LastID++
 	newUser := &User{
 		ID:       repo.LastID,
 		Login:    login,
 		password: pass,
 	}
+	repo.LastID++
 	repo.mu.RLock()
 	repo.data[login] = newUser
 	repo.mu.RUnlock()
