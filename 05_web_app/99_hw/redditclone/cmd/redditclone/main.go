@@ -61,6 +61,8 @@ func main() {
 	r.HandleFunc("/api/post/{post_id}/downvote", postsHandler.DownVote).Methods("GET")
 	r.HandleFunc("/api/posts/{category_name}", postsHandler.GetByCategory).Methods("GET")
 	r.HandleFunc("/api/user/{user_login}", postsHandler.GetAllByUser).Methods("GET")
+	r.HandleFunc("/api/post/{post_id}", postsHandler.DeletePost).Methods("DELETE")
+	r.HandleFunc("/api/user/{user_login}", postsHandler.GetAllByUser).Methods("GET")
 
 	// http.Handle("/api/", http.StripPrefix("/api/", r))
 

@@ -3,8 +3,8 @@ package session
 import (
 	"context"
 	"errors"
-	"fmt"
 	"redditclone/pkg/user"
+	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -27,10 +27,14 @@ func NewSession(user *user.User) *Session {
 	iat := time.Now()
 	expires := time.Now().Add(90 * 24 * time.Hour)
 
+	//  strconv.FormatUint(uint64(user.ID), 10)
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user": fmt.Sprintf(`{"username": %s, "id": %d}`, user.Login, user.ID),
-		"iat":  iat.Unix(),
-		"exp":  expires.Unix(),
+		"exp": expires.Unix(),
+		"iat": iat.Unix(),
+		"user": map[string]string{
+			"username": user.Login,
+			"id":       strconv.FormatUint(uint64(user.ID), 10)},
 	})
 
 	tokenString, err := token.SignedString([]byte(ExampleTokenSecret))

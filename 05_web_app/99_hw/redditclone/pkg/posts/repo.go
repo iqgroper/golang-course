@@ -97,7 +97,7 @@ func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 func (repo *PostMemoryRepository) Delete(id uint) (bool, error) {
 	i := -1
 	for idx, item := range repo.data {
-		if item.ID != id {
+		if item.ID == id {
 			i = idx
 			break
 		}

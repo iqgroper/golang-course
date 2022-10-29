@@ -77,6 +77,17 @@ func (repo *CommentMemoryRepository) Delete(post_id, comment_id uint) (bool, err
 	return true, nil
 }
 
+func (repo *CommentMemoryRepository) DeleteAllByPost(post_id uint) (bool, error) {
+	newData := make([]*Comment, 0, len(repo.data))
+	for _, item := range repo.data {
+		if item.PostID != post_id {
+			newData = append(newData, item)
+		}
+	}
+	repo.data = newData
+	return true, nil
+}
+
 // func (repo *CommentMemoryRepository) GetByID(id uint32) (*Post, error) {
 // 	for _, item := range repo.data {
 // 		if item.ID == id {

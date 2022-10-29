@@ -341,7 +341,41 @@ func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
 
+	postIDStr, ok := vars["post_id"]
+	if !ok {
+		h.Logger.Println("no post_id in query in DeletePost")
+		http.Error(w, "no post_id in query in DeletePost", http.StatusBadRequest)
+		return
+	}
+
+	postID := getIDFromString(postIDStr)
+
+	fmt.Println("post id", postID)
+
+	_, errDel := h.PostsRepo.Delete(postID)
+	if errDel != nil {
+		h.Logger.Println("in DeletePost:", errDel.Error())
+		http.Error(w, "in DeletePost: "+errDel.Error(), http.StatusBadRequest)
+		return
+	}
+
+	_, err := h.CommentsRepo.DeleteAllByPost(postID)
+	if err != nil {
+		h.Logger.Println("cant delete all comments in DeleteCommentByPost", err.Error())
+		http.Error(w, "cant delete all comments in DeleteCommentByPost", http.StatusBadRequest)
+		return
+	}
+
+	resp, errMar := json.Marshal(map[string]string{"message": "success"})
+	if errMar != nil {
+		h.Logger.Println("cant marshal in DeleteCommentByPost", err.Error())
+		http.Error(w, "cant marshal in DeleteCommentByPost "+errMar.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(resp))
 }
 
 const postsTemplate = `[{{$firstOuter := 1}}{{range .}}{{if $firstOuter}}{{$firstOuter = 0}}{{else}},{{end}}
