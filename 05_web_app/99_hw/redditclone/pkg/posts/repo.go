@@ -56,10 +56,10 @@ func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 		Votes: 1,
 		VotesList: []struct {
 			User string
-			Vote uint
+			Vote int
 		}{{item.Author.Login, 1}},
 		Category:         item.Category,
-		CreatedDTTM:      time.Now().String(),
+		CreatedDTTM:      time.Now().UTC().String(),
 		Text:             item.Text,
 		URL:              item.URL,
 		Type:             item.Type,
@@ -117,28 +117,32 @@ func (repo *PostMemoryRepository) GetAllByCategory(category string) ([]*Post, er
 	return result, nil
 }
 
-func (repo *PostMemoryRepository) UpVote(post_id uint) (*Post, error) {
+func (repo *PostMemoryRepository) UpVote(post_id uint, username string) (*Post, error) {
 	for _, item := range repo.data {
 		if item.ID == post_id {
 			item.Score += 1
 			item.Votes += 1
 			item.UpvotePercentage = item.Score / item.Votes
-			// item.VotesList = append(item.VotesList, struct {
-			// 	User string
-			// 	Vote uint
-			// }{, 1})
+			item.VotesList = append(item.VotesList, struct {
+				User string
+				Vote int
+			}{username, 1})
 			return item, nil
 		}
 	}
 	return nil, ErrNoPost
 }
 
-func (repo *PostMemoryRepository) DownVote(post_id uint) (*Post, error) {
+func (repo *PostMemoryRepository) DownVote(post_id uint, username string) (*Post, error) {
 	for _, item := range repo.data {
 		if item.ID == post_id {
 			item.Score -= 1
 			item.Votes += 1
 			item.UpvotePercentage = item.Score / item.Votes
+			item.VotesList = append(item.VotesList, struct {
+				User string
+				Vote int
+			}{username, -1})
 			return item, nil
 		}
 	}

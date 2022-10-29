@@ -8,7 +8,7 @@ type Post struct {
 	Score     int
 	VotesList []struct {
 		User string
-		Vote uint
+		Vote int
 	}
 	Votes            int
 	Category         string
@@ -18,7 +18,7 @@ type Post struct {
 	Type             string
 	UpvotePercentage int
 	Views            uint
-	Comments         []comments.Comment
+	Comments         []*comments.Comment
 	Author           struct {
 		Username string
 		ID       uint
@@ -30,7 +30,7 @@ type PostRepo interface {
 	Add(item *NewPost) (*Post, error)
 	GetAllByCategory(category string) ([]*Post, error)
 	GetByID(post_id uint) (*Post, error)
-	UpVote(post_id uint) (*Post, error)
-	DownVote(post_id uint) (*Post, error)
+	UpVote(post_id uint, username string) (*Post, error)
+	DownVote(post_id uint, username string) (*Post, error)
 	Delete(post_id uint) (bool, error)
 }

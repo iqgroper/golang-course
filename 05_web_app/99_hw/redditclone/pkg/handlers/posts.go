@@ -148,7 +148,7 @@ const postTemplate = `
 	{{$first := 1}}
 	{{range .VotesList}}
 	{{if $first}}{{$first = 0}}{{else}},{{end}}
-		{"user":"{{.User}}","vote":1}
+		{"user":"{{.User}}","vote":{{.Vote}}}
 	{{end}}
 ],
 "comments":[
@@ -262,7 +262,7 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	foundPost.Comments = append(foundPost.Comments, *newComment)
+	foundPost.Comments = append(foundPost.Comments, newComment)
 
 	tmpl := template.New("")
 	tmpl, errParse := tmpl.Parse(postTemplate)
@@ -281,15 +281,145 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
 
+	postIDStr, ok := vars["post_id"]
+	if !ok {
+		h.Logger.Println("no post_id in query in DeleteComment")
+		http.Error(w, "no post_id in query in DeleteComment", http.StatusBadRequest)
+		return
+	}
+	commentIDStr, ok := vars["comment_id"]
+	if !ok {
+		h.Logger.Println("no comment_id in query in DeleteComment")
+		http.Error(w, "no comment_id in query in DeleteComment", http.StatusBadRequest)
+		return
+	}
+
+	postID := getIDFromString(postIDStr)
+	commentID := getIDFromString(commentIDStr)
+
+	ok, err := h.CommentsRepo.Delete(postID, commentID)
+	if !ok || err != nil {
+		h.Logger.Println("cant delete a comment in DeleteComment", err.Error())
+		http.Error(w, "cant delete a comment in DeleteComment", http.StatusBadRequest)
+		return
+	}
+
+	foundPost, errFind := h.PostsRepo.GetByID(postID)
+	if errFind != nil {
+		h.Logger.Println("cant find post in DeleteComment:", errFind.Error())
+		http.Error(w, fmt.Sprintln("cant find post in DeleteComment:", errFind.Error()), http.StatusBadRequest)
+		return
+	}
+
+	newComments, errGetAll := h.CommentsRepo.GetAll(foundPost.ID)
+	if errGetAll != nil {
+		h.Logger.Println("cant GetAll in DeleteComment:", errGetAll.Error())
+		http.Error(w, fmt.Sprintln("cant GetAll in DeleteComment:", errGetAll.Error()), http.StatusInternalServerError)
+		return
+	}
+	foundPost.Comments = newComments
+
+	tmpl := template.New("")
+	tmpl, errParse := tmpl.Parse(postTemplate)
+	if errParse != nil {
+		fmt.Println("Error parsing", errParse.Error())
+	}
+	var resp bytes.Buffer
+
+	errExecution := tmpl.Execute(&resp, foundPost)
+	if errExecution != nil {
+		fmt.Println("Error executing template:", errExecution.Error())
+		return
+	}
+
+	w.Write(resp.Bytes())
 }
 
 func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	postIDStr, ok := vars["post_id"]
+	if !ok {
+		h.Logger.Println("no post_id in query in UpVote")
+		http.Error(w, "no post_id in query in UpVote", http.StatusBadRequest)
+		return
+	}
+
+	postID := getIDFromString(postIDStr)
+
+	sess, errSess := session.SessionFromContext(r.Context())
+	if errSess != nil {
+		h.Logger.Println("error getting session in UpVote:", errSess.Error())
+		http.Error(w, fmt.Sprintf(`error getting session in UpVote: %s`, errSess.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	foundPost, err := h.PostsRepo.UpVote(postID, sess.User.Login)
+	if err != nil {
+		h.Logger.Println(err.Error())
+		http.Error(w, "UpVote:"+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	tmpl := template.New("")
+	tmpl, errParse := tmpl.Parse(postTemplate)
+	if errParse != nil {
+		fmt.Println("Error parsing", errParse.Error())
+	}
+	var resp bytes.Buffer
+
+	errExecution := tmpl.Execute(&resp, foundPost)
+	if errExecution != nil {
+		fmt.Println("Error executing template:", errExecution.Error())
+		return
+	}
+
+	w.Write(resp.Bytes())
 
 }
 
 func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
 
+	postIDStr, ok := vars["post_id"]
+	if !ok {
+		h.Logger.Println("no post_id in query in DownVote")
+		http.Error(w, "no post_id in query in DownVote", http.StatusBadRequest)
+		return
+	}
+
+	postID := getIDFromString(postIDStr)
+
+	sess, errSess := session.SessionFromContext(r.Context())
+	if errSess != nil {
+		h.Logger.Println("error getting session in DownVote:", errSess.Error())
+		http.Error(w, fmt.Sprintf(`error getting session in DownVote: %s`, errSess.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	foundPost, err := h.PostsRepo.DownVote(postID, sess.User.Login)
+	if err != nil {
+		h.Logger.Println(err.Error())
+		http.Error(w, "DownVote:"+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	tmpl := template.New("")
+	tmpl, errParse := tmpl.Parse(postTemplate)
+	if errParse != nil {
+		fmt.Println("Error parsing", errParse.Error())
+	}
+	var resp bytes.Buffer
+
+	errExecution := tmpl.Execute(&resp, foundPost)
+	if errExecution != nil {
+		fmt.Println("Error executing template:", errExecution.Error())
+		return
+	}
+
+	w.Write(resp.Bytes())
 }
 
 func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
