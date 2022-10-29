@@ -47,6 +47,21 @@ func (repo *PostMemoryRepository) GetByID(id uint) (*Post, error) {
 	return nil, ErrNoPost
 }
 
+func (repo *PostMemoryRepository) GetByUser(user_login string) ([]*Post, error) {
+	result := make([]*Post, 0, 10)
+	for _, item := range repo.data {
+		if item.Author.Username == user_login {
+			result = append(result, item)
+		}
+	}
+
+	if len(result) == 0 {
+		return nil, ErrNoPost
+	}
+
+	return result, nil
+}
+
 func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 
 	newPost := &Post{

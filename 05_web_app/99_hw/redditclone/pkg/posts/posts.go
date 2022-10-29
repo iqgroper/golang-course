@@ -30,6 +30,7 @@ type PostRepo interface {
 	Add(item *NewPost) (*Post, error)
 	GetAllByCategory(category string) ([]*Post, error)
 	GetByID(post_id uint) (*Post, error)
+	GetByUser(user_login string) ([]*Post, error)
 	UpVote(post_id uint, username string) (*Post, error)
 	DownVote(post_id uint, username string) (*Post, error)
 	Delete(post_id uint) (bool, error)

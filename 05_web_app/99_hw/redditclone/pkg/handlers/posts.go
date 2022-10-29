@@ -23,48 +23,6 @@ type PostsHandler struct {
 	Logger       *logrus.Entry
 }
 
-type ReturnStruct struct {
-	index   int
-	element posts.Post
-}
-
-const bodyTemplate = `[{{range .}}
-"{{.index}}":{{.elem}}
-{{end}}]`
-
-func (h *PostsHandler) GetAll(w http.ResponseWriter, r *http.Request) { //elem behavior
-	elems, err := h.PostsRepo.GetAll()
-	if err != nil {
-		http.Error(w, `DB err`, http.StatusInternalServerError)
-		return
-	}
-
-	respSlice := make([]ReturnStruct, 0, 100)
-	for idx, elem := range elems {
-		resp := ReturnStruct{
-			index:   idx,
-			element: *elem,
-		}
-		respSlice = append(respSlice, resp)
-	}
-
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(bodyTemplate)
-	if errParse != nil {
-		fmt.Println("Error parsing New method", errParse.Error())
-	}
-	var resp bytes.Buffer
-
-	errExecution := tmpl.Execute(&resp, respSlice)
-	if errExecution != nil {
-		fmt.Println("Error executing template in GetAll posts:", errExecution.Error())
-		return
-	}
-
-	fmt.Println(resp.String())
-
-}
-
 const newPostTemplate = `
 {"score":{{.Score}},
 "views":{{.Views}},
@@ -197,20 +155,25 @@ func (h *PostsHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	foundPost.Views += 1
 
+	responseBody := SendPost(foundPost, "GetByID")
+
+	w.Write([]byte(responseBody))
+}
+
+func SendPost(post *posts.Post, function string) string {
 	tmpl := template.New("")
 	tmpl, errParse := tmpl.Parse(postTemplate)
 	if errParse != nil {
-		fmt.Println("Error parsing in getPostByID method", errParse.Error())
+		fmt.Printf("Error parsing in %s: %s", function, errParse.Error())
 	}
 	var resp bytes.Buffer
 
-	errExecution := tmpl.Execute(&resp, foundPost)
+	errExecution := tmpl.Execute(&resp, post)
 	if errExecution != nil {
-		fmt.Println("Error executing template in getPostByID:", errExecution.Error())
-		return
+		fmt.Printf("Error executing template in %s: %s", function, errExecution.Error())
+		return ""
 	}
-
-	w.Write(resp.Bytes())
+	return resp.String()
 }
 
 func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
@@ -218,8 +181,8 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 
 	postIDStr, ok := vars["post_id"]
 	if !ok {
-		h.Logger.Println("no post_id in query in GetByID")
-		http.Error(w, "no post_id in query in GetByID", http.StatusBadRequest)
+		h.Logger.Println("no post_id in query in AddComment")
+		http.Error(w, "no post_id in query in AddComment", http.StatusBadRequest)
 		return
 	}
 
@@ -264,20 +227,9 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 
 	foundPost.Comments = append(foundPost.Comments, newComment)
 
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postTemplate)
-	if errParse != nil {
-		fmt.Println("Error parsing", errParse.Error())
-	}
-	var resp bytes.Buffer
+	responseBody := SendPost(foundPost, "AddComment")
 
-	errExecution := tmpl.Execute(&resp, foundPost)
-	if errExecution != nil {
-		fmt.Println("Error executing template:", errExecution.Error())
-		return
-	}
-
-	w.Write(resp.Bytes())
+	w.Write([]byte(responseBody))
 }
 
 func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
@@ -321,20 +273,9 @@ func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	}
 	foundPost.Comments = newComments
 
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postTemplate)
-	if errParse != nil {
-		fmt.Println("Error parsing", errParse.Error())
-	}
-	var resp bytes.Buffer
+	responseBody := SendPost(foundPost, "DeleteComment")
 
-	errExecution := tmpl.Execute(&resp, foundPost)
-	if errExecution != nil {
-		fmt.Println("Error executing template:", errExecution.Error())
-		return
-	}
-
-	w.Write(resp.Bytes())
+	w.Write([]byte(responseBody))
 }
 
 func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
@@ -363,21 +304,9 @@ func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postTemplate)
-	if errParse != nil {
-		fmt.Println("Error parsing", errParse.Error())
-	}
-	var resp bytes.Buffer
+	responseBody := SendPost(foundPost, "UpVote")
 
-	errExecution := tmpl.Execute(&resp, foundPost)
-	if errExecution != nil {
-		fmt.Println("Error executing template:", errExecution.Error())
-		return
-	}
-
-	w.Write(resp.Bytes())
-
+	w.Write([]byte(responseBody))
 }
 
 func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
@@ -406,64 +335,134 @@ func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postTemplate)
-	if errParse != nil {
-		fmt.Println("Error parsing", errParse.Error())
-	}
-	var resp bytes.Buffer
+	responseBody := SendPost(foundPost, "DownVote")
 
-	errExecution := tmpl.Execute(&resp, foundPost)
-	if errExecution != nil {
-		fmt.Println("Error executing template:", errExecution.Error())
-		return
-	}
-
-	w.Write(resp.Bytes())
+	w.Write([]byte(responseBody))
 }
 
 func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 
 }
 
+const postsTemplate = `[{{$firstOuter := 1}}{{range .}}{{if $firstOuter}}{{$firstOuter = 0}}{{else}},{{end}}
+	{"score":{{.Score}},
+	"views":{{.Views}},
+	"type":"{{.Type}}",
+	"title":"{{.Title}}",
+	"author":{"username":"{{.Author.Username}}","id":"{{.Author.ID}}"},
+	"category":"{{.Category}}",
+	{{if (eq .Type "text")}}
+	"text":"{{.Text}}",
+	{{else}}
+	"url":"{{.URL}}",
+	{{end}}
+	"votes":[
+		{{$first := 1}}
+		{{range .VotesList}}
+		{{if $first}}{{$first = 0}}{{else}},{{end}}
+			{"user":"{{.User}}","vote":{{.Vote}}}
+		{{end}}
+	],
+	"comments":[
+		{{$first := 1}}
+		{{range .Comments}}
+		{{if $first}}{{$first = 0}}{{else}},{{end}}
+		{	
+			"author":{"username":"{{.Author.Login}}", "id":"{{.Author.ID}}"},
+			"body":"{{.Body}}",
+			"created":"{{.Created}}",
+			"id":"{{.ID}}"
+		}
+		{{end}}
+	],
+	"created":"{{.CreatedDTTM}}",
+	"upvotePercentage":{{.UpvotePercentage}},
+	"id":"{{.ID}}"}
+{{end}}]
+`
+
+func (h *PostsHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+
+	postList, errGetting := h.PostsRepo.GetAll()
+	if errGetting != nil {
+		h.Logger.Println(errGetting)
+		w.Write([]byte("[]"))
+		return
+	}
+
+	tmpl := template.New("")
+	tmpl, errParse := tmpl.Parse(postsTemplate)
+	if errParse != nil {
+		fmt.Printf("Error parsing: %s", errParse.Error())
+	}
+	var resp bytes.Buffer
+
+	errExecution := tmpl.Execute(&resp, postList)
+	if errExecution != nil {
+		fmt.Printf("Error executing template: %s", errExecution.Error())
+	}
+
+	w.Write(resp.Bytes())
+}
+
 func (h *PostsHandler) GetByCategory(w http.ResponseWriter, r *http.Request) {
-	// vars := mux.Vars(r)
-	// postIDStr, ok := vars["category_name"]
-	// if !ok {
-	// 	h.Logger.Println("no category_name in query")
-	// 	http.Error(w, "no category_name in query", http.StatusBadRequest)
-	// 	return
-	// }
+	vars := mux.Vars(r)
+	categoryName, ok := vars["category_name"]
+	if !ok {
+		h.Logger.Println("no category_name in query")
+		http.Error(w, "no category_name in query", http.StatusBadRequest)
+		return
+	}
 
-	// u64, err := strconv.ParseUint(postIDStr, 10, 32)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// postID := uint(u64)
+	postList, errGetting := h.PostsRepo.GetAllByCategory(categoryName)
+	if errGetting != nil {
+		h.Logger.Println(errGetting)
+		w.Write([]byte("[]"))
+		return
+	}
 
-	// foundPost, errFind := h.PostsRepo.GetByID(postID)
-	// if errFind != nil {
-	// 	h.Logger.Println("no such post in repo.getbyid:", errFind.Error())
-	// 	http.Error(w, fmt.Sprintln("no such post in repo.getbyid:", errFind.Error()), http.StatusBadRequest)
-	// 	return
-	// }
+	tmpl := template.New("")
+	tmpl, errParse := tmpl.Parse(postsTemplate)
+	if errParse != nil {
+		fmt.Printf("Error parsing: %s", errParse.Error())
+	}
+	var resp bytes.Buffer
 
-	// tmpl := template.New("")
-	// tmpl, errParse := tmpl.Parse(postTemplate)
-	// if errParse != nil {
-	// 	fmt.Println("Error parsing in getPostByID method", errParse.Error())
-	// }
-	// var resp bytes.Buffer
+	errExecution := tmpl.Execute(&resp, postList)
+	if errExecution != nil {
+		fmt.Printf("Error executing template: %s", errExecution.Error())
+	}
 
-	// errExecution := tmpl.Execute(&resp, foundPost)
-	// if errExecution != nil {
-	// 	fmt.Println("Error executing template in getPostByID:", errExecution.Error())
-	// 	return
-	// }
-
-	// w.Write(resp.Bytes())
+	w.Write(resp.Bytes())
 }
 
 func (h *PostsHandler) GetAllByUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userLogin, ok := vars["user_login"]
+	if !ok {
+		h.Logger.Println("no user_login in query")
+		http.Error(w, "no user_login in query", http.StatusBadRequest)
+		return
+	}
 
+	postList, errGetting := h.PostsRepo.GetByUser(userLogin)
+	if errGetting != nil {
+		h.Logger.Println(errGetting)
+		w.Write([]byte("[]"))
+		return
+	}
+
+	tmpl := template.New("")
+	tmpl, errParse := tmpl.Parse(postsTemplate)
+	if errParse != nil {
+		fmt.Printf("Error parsing: %s", errParse.Error())
+	}
+	var resp bytes.Buffer
+
+	errExecution := tmpl.Execute(&resp, postList)
+	if errExecution != nil {
+		fmt.Printf("Error executing template: %s", errExecution.Error())
+	}
+
+	w.Write(resp.Bytes())
 }

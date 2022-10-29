@@ -52,16 +52,15 @@ func main() {
 
 	r.HandleFunc("/api/register", userHandler.Register).Methods("POST")
 	r.HandleFunc("/api/login", userHandler.Login).Methods("POST")
+	r.HandleFunc("/api/posts/", postsHandler.GetAll).Methods("GET")
 	r.HandleFunc("/api/posts", postsHandler.AddPost).Methods("POST")
 	r.HandleFunc("/api/post/{post_id}", postsHandler.GetByID).Methods("GET")
 	r.HandleFunc("/api/post/{post_id}", postsHandler.AddComment).Methods("POST")
 	r.HandleFunc("/api/post/{post_id}/{comment_id}", postsHandler.DeleteComment).Methods("DELETE")
 	r.HandleFunc("/api/post/{post_id}/upvote", postsHandler.UpVote).Methods("GET")
 	r.HandleFunc("/api/post/{post_id}/downvote", postsHandler.DownVote).Methods("GET")
-
-	// r.HandleFunc("/api/posts/{category_name}", postsHandler.GetByCategory).Methods("GET")
-	// r.HandleFunc("/api/post/{category_name}", postsHandler.GetByCategory).Methods("GET")
-	// r.HandleFunc("/api/post/{post_id}", postsHandler.GetByID).Methods("GET")
+	r.HandleFunc("/api/posts/{category_name}", postsHandler.GetByCategory).Methods("GET")
+	r.HandleFunc("/api/user/{user_login}", postsHandler.GetAllByUser).Methods("GET")
 
 	// http.Handle("/api/", http.StripPrefix("/api/", r))
 
