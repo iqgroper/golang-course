@@ -5,13 +5,14 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
 // protoc --go_out=. *.proto
 
 func main() {
 	sess := &Session{
-		Login:     "dmitry",
+		Login:     "vasiliy",
 		Useragent: "Chrome",
 	}
 
@@ -41,4 +42,6 @@ func main() {
 				67 104 114 111 109 101
 	*/
 
+	dataMsgPack, _ := msgpack.Marshal(sess)
+	fmt.Printf("dataMsgPack\nlen %d\n%v\n", len(dataMsgPack), dataMsgPack)
 }
