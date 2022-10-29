@@ -23,7 +23,7 @@ func NewMemoryRepo() *UserMemoryRepository {
 			"admin": {
 				ID:       0,
 				Login:    "admin",
-				password: "admin",
+				password: "asdfasdf",
 			},
 		},
 		LastID: 0,

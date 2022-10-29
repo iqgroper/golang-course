@@ -5,6 +5,7 @@ import (
 	"os"
 	"redditclone/pkg/comments"
 	"redditclone/pkg/handlers"
+	"redditclone/pkg/middleware"
 	"redditclone/pkg/posts"
 	"redditclone/pkg/session"
 	"redditclone/pkg/user"
@@ -39,6 +40,9 @@ func main() {
 	}
 
 	r := mux.NewRouter()
+	mux := middleware.Auth(sm, r)
+	// mux = middleware.AccessLog(logger, mux)
+	// mux = middleware.Panic(mux)
 
 	fs := http.FileServer(http.Dir("../../"))
 	http.Handle("/static/", fs)
@@ -51,7 +55,8 @@ func main() {
 	r.HandleFunc("/api/posts", postsHandler.AddPost).Methods("POST")
 
 	// http.Handle("/api/", http.StripPrefix("/api/", r))
-	http.Handle("/api/", r)
+
+	http.Handle("/api/", mux)
 
 	log.Print("Listening on :8080")
 	err := http.ListenAndServe(":8080", nil)

@@ -1,24 +1,26 @@
 package posts
 
-import "redditclone/pkg/user"
-
 type Post struct {
-	ID               uint   `schema:"-"`
-	Title            string `schema:"title,required"`
+	ID               uint
+	Title            string
 	Score            int
 	Votes            int
 	Category         string
 	CreatedDTTM      string
 	Text             string
+	URL              string
 	Type             string
 	UpvotePercentage int
 	Views            uint
-	Author           *user.User
+	Author           struct {
+		Username string
+		ID       uint
+	}
 }
 
 type PostRepo interface {
 	GetAll() ([]*Post, error)
-	Add(item *Post) (uint, error)
+	Add(item *NewPost) (*Post, error)
 	GetAllByCategory(category string) ([]*Post, error)
 	GetByID(post_id uint) (*Post, error)
 	UpVote(post_id uint) (*Post, error)

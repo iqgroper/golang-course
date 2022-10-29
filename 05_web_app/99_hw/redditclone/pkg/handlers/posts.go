@@ -7,10 +7,10 @@ import (
 	"html/template"
 	"io"
 	"net/http"
-	"redditclone/pkg/user"
 
 	"redditclone/pkg/comments"
 	"redditclone/pkg/posts"
+	"redditclone/pkg/session"
 
 	"github.com/sirupsen/logrus"
 )
@@ -63,23 +63,20 @@ func (h *PostsHandler) GetAll(w http.ResponseWriter, r *http.Request) { //elem b
 
 }
 
-type NewPost struct {
-	Score    int
-	Views    uint
-	Type     string
-	Title    string
-	Author   user.NewUser
-	Category string
-	Text     string
-	Votes    []struct {
-		user string
-		vote int
-	}
-	Comments         []interface{}
-	Created          string
-	UpvotePercentage int
-	ID               uint
-}
+const postTemplate = `
+{"score":{{.Score}},
+"views":{{.Views}},
+"type":"{{.Text}}",
+"title":"{{.Title}}",
+"author":{"username":"{{.Author.Username}}","id":"{{.Author.ID}}"},
+"category":"funny",
+"text":"asdfasdfasdfa",
+"votes":[{"user":"{{.Author.Username}}","vote":1}],
+"comments":[],
+"created":"{{.CreatedDTTM}}",
+"upvotePercentage":{{.UpvotePercentage}},
+"id":"{{.ID}}"}
+`
 
 func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
@@ -90,13 +87,43 @@ func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newPost := &NewPost{}
+	newPost := &posts.NewPost{}
 	errorUnmarshal := json.Unmarshal(body, newPost)
 	if errorUnmarshal != nil {
-		fmt.Println("error unmarshling:", errorUnmarshal.Error())
+		h.Logger.Println("error unmarshling new post:", errorUnmarshal.Error())
+		http.Error(w, fmt.Sprintf(`error unmarshling new post: %s`, errorUnmarshal.Error()), http.StatusInternalServerError)
 		return
 	}
-	fmt.Println(newPost)
+
+	sess, errSess := session.SessionFromContext(r.Context())
+	if errSess != nil {
+		h.Logger.Println("error getting session in Add:", errSess.Error())
+		http.Error(w, fmt.Sprintf(`error getting session in Add: %s`, errSess.Error()), http.StatusInternalServerError)
+		return
+	}
+	newPost.Author = *sess.User
+
+	addedPost, errAdd := h.PostsRepo.Add(newPost)
+	if errAdd != nil {
+		h.Logger.Println("error adding post:", errAdd.Error())
+		http.Error(w, fmt.Sprintf(`error adding post: %s`, errAdd.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	tmpl := template.New("")
+	tmpl, errParse := tmpl.Parse(postTemplate)
+	if errParse != nil {
+		fmt.Println("Error parsing AddPost method", errParse.Error())
+	}
+	var resp bytes.Buffer
+
+	errExecution := tmpl.Execute(&resp, addedPost)
+	if errExecution != nil {
+		fmt.Println("Error executing template in AddPost:", errExecution.Error())
+		return
+	}
+
+	w.Write(resp.Bytes())
 }
 
 func (h *PostsHandler) GetByCategory(w http.ResponseWriter, r *http.Request) {

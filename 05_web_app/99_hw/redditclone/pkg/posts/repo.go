@@ -2,7 +2,9 @@ package posts
 
 import (
 	"errors"
+	"redditclone/pkg/user"
 	"sync"
+	"time"
 )
 
 var (
@@ -15,9 +17,20 @@ type PostMemoryRepository struct {
 	mu     *sync.RWMutex
 }
 
+type NewPost struct {
+	Type     string
+	Title    string
+	Text     string
+	URL      string
+	Category string
+	Author   user.User `json:"-"`
+}
+
 func NewMemoryRepo() *PostMemoryRepository {
 	return &PostMemoryRepository{
-		data: make([]*Post, 0, 10),
+		lastID: 0,
+		data:   make([]*Post, 0, 10),
+		mu:     &sync.RWMutex{},
 	}
 }
 
@@ -34,15 +47,32 @@ func (repo *PostMemoryRepository) GetByID(id uint) (*Post, error) {
 	return nil, ErrNoPost
 }
 
-func (repo *PostMemoryRepository) Add(item *Post) (uint, error) {
+func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
+
+	newPost := &Post{
+		ID:               repo.lastID,
+		Title:            item.Title,
+		Score:            1,
+		Votes:            1,
+		Category:         item.Category,
+		CreatedDTTM:      time.Now().String(),
+		Text:             item.Text,
+		URL:              item.URL,
+		Type:             item.Type,
+		UpvotePercentage: 100,
+		Views:            1,
+		Author: struct {
+			Username string
+			ID       uint
+		}{item.Author.Login, item.Author.ID},
+	}
 	repo.lastID++
-	item.ID = repo.lastID
 
 	repo.mu.Lock()
-	repo.data = append(repo.data, item)
+	repo.data = append(repo.data, newPost)
 	repo.mu.Unlock()
 
-	return repo.lastID, nil
+	return newPost, nil
 }
 
 func (repo *PostMemoryRepository) Delete(id uint) (bool, error) {

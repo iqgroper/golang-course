@@ -33,7 +33,7 @@ func (sm *SessionsManager) Check(r *http.Request) (*Session, error) {
 		if !ok || method.Alg() != "HS256" {
 			return nil, fmt.Errorf("bad sign method")
 		}
-		return ExampleTokenSecret, nil
+		return []byte(ExampleTokenSecret), nil
 	}
 
 	log.Println("session id value:", sessionCookie.Value)
