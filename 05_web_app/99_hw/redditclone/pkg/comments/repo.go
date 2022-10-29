@@ -2,7 +2,9 @@ package comments
 
 import (
 	"errors"
+	"redditclone/pkg/user"
 	"sync"
+	"time"
 )
 
 var (
@@ -17,7 +19,9 @@ type CommentMemoryRepository struct {
 
 func NewMemoryRepo() *CommentMemoryRepository {
 	return &CommentMemoryRepository{
-		data: make([]*Comment, 0, 10),
+		data:   make([]*Comment, 0, 10),
+		lastID: 0,
+		mu:     &sync.RWMutex{},
 	}
 }
 
@@ -32,15 +36,22 @@ func (repo *CommentMemoryRepository) GetAll(post_id uint) ([]*Comment, error) {
 	return result, nil
 }
 
-func (repo *CommentMemoryRepository) Add(item *Comment) (uint, error) {
-	item.ID = repo.lastID
+func (repo *CommentMemoryRepository) Add(post_id uint, body string, user *user.User) (*Comment, error) {
+
+	newComment := &Comment{
+		ID:      repo.lastID,
+		Body:    body,
+		Created: time.Now().String(),
+		Author:  user,
+		PostID:  post_id,
+	}
 	repo.lastID++
 
 	repo.mu.Lock()
-	repo.data = append(repo.data, item)
+	repo.data = append(repo.data, newComment)
 	repo.mu.Unlock()
 
-	return repo.lastID, nil
+	return newComment, nil
 }
 
 func (repo *CommentMemoryRepository) Delete(post_id, comment_id uint) (bool, error) {

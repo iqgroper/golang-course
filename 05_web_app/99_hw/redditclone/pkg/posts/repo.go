@@ -50,17 +50,21 @@ func (repo *PostMemoryRepository) GetByID(id uint) (*Post, error) {
 func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 
 	newPost := &Post{
-		ID:               repo.lastID,
-		Title:            item.Title,
-		Score:            1,
-		Votes:            1,
+		ID:    repo.lastID,
+		Title: item.Title,
+		Score: 1,
+		Votes: 1,
+		VotesList: []struct {
+			User string
+			Vote uint
+		}{{item.Author.Login, 1}},
 		Category:         item.Category,
 		CreatedDTTM:      time.Now().String(),
 		Text:             item.Text,
 		URL:              item.URL,
 		Type:             item.Type,
 		UpvotePercentage: 100,
-		Views:            1,
+		Views:            0,
 		Author: struct {
 			Username string
 			ID       uint
@@ -119,6 +123,10 @@ func (repo *PostMemoryRepository) UpVote(post_id uint) (*Post, error) {
 			item.Score += 1
 			item.Votes += 1
 			item.UpvotePercentage = item.Score / item.Votes
+			// item.VotesList = append(item.VotesList, struct {
+			// 	User string
+			// 	Vote uint
+			// }{, 1})
 			return item, nil
 		}
 	}

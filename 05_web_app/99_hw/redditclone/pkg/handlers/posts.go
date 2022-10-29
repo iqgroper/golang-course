@@ -7,11 +7,13 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"strconv"
 
 	"redditclone/pkg/comments"
 	"redditclone/pkg/posts"
 	"redditclone/pkg/session"
 
+	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
 
@@ -63,14 +65,18 @@ func (h *PostsHandler) GetAll(w http.ResponseWriter, r *http.Request) { //elem b
 
 }
 
-const postTemplate = `
+const newPostTemplate = `
 {"score":{{.Score}},
 "views":{{.Views}},
-"type":"{{.Text}}",
+"type":"{{.Type}}",
 "title":"{{.Title}}",
 "author":{"username":"{{.Author.Username}}","id":"{{.Author.ID}}"},
-"category":"funny",
-"text":"asdfasdfasdfa",
+"category":"{{.Category}}",
+{{if (eq .Type "text")}}
+"text":"{{.Text}}",
+{{else}}
+"url":"{{.URL}}",
+{{end}}
 "votes":[{"user":"{{.Author.Username}}","vote":1}],
 "comments":[],
 "created":"{{.CreatedDTTM}}",
@@ -111,7 +117,7 @@ func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postTemplate)
+	tmpl, errParse := tmpl.Parse(newPostTemplate)
 	if errParse != nil {
 		fmt.Println("Error parsing AddPost method", errParse.Error())
 	}
@@ -126,16 +132,152 @@ func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp.Bytes())
 }
 
-func (h *PostsHandler) GetByCategory(w http.ResponseWriter, r *http.Request) {
+const postTemplate = `
+{"score":{{.Score}},
+"views":{{.Views}},
+"type":"{{.Type}}",
+"title":"{{.Title}}",
+"author":{"username":"{{.Author.Username}}","id":"{{.Author.ID}}"},
+"category":"{{.Category}}",
+{{if (eq .Type "text")}}
+"text":"{{.Text}}",
+{{else}}
+"url":"{{.URL}}",
+{{end}}
+"votes":[
+	{{$first := 1}}
+	{{range .VotesList}}
+	{{if $first}}{{$first = 0}}{{else}},{{end}}
+		{"user":"{{.User}}","vote":1}
+	{{end}}
+],
+"comments":[
+	{{$first := 1}}
+	{{range .Comments}}
+	{{if $first}}{{$first = 0}}{{else}},{{end}}
+	{	
+		"author":{"username":"{{.Author.Login}}", "id":"{{.Author.ID}}"},
+		"body":"{{.Body}}",
+		"created":"{{.Created}}",
+		"id":"{{.ID}}"
+	}
+	{{end}}
+],
+"created":"{{.CreatedDTTM}}",
+"upvotePercentage":{{.UpvotePercentage}},
+"id":"{{.ID}}"}
+`
 
+func getIDFromString(id string) uint {
+	u64, err := strconv.ParseUint(id, 10, 32)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return uint(u64)
 }
 
 func (h *PostsHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
 
+	postIDStr, ok := vars["post_id"]
+	if !ok {
+		h.Logger.Println("no post_id in query in GetByID")
+		http.Error(w, "no post_id in query in GetByID", http.StatusBadRequest)
+		return
+	}
+
+	postID := getIDFromString(postIDStr)
+
+	foundPost, errFind := h.PostsRepo.GetByID(postID)
+	if errFind != nil {
+		h.Logger.Println("no such post in repo.getbyid:", errFind.Error())
+		http.Error(w, fmt.Sprintln("no such post in repo.getbyid:", errFind.Error()), http.StatusBadRequest)
+		return
+	}
+
+	foundPost.Views += 1
+
+	tmpl := template.New("")
+	tmpl, errParse := tmpl.Parse(postTemplate)
+	if errParse != nil {
+		fmt.Println("Error parsing in getPostByID method", errParse.Error())
+	}
+	var resp bytes.Buffer
+
+	errExecution := tmpl.Execute(&resp, foundPost)
+	if errExecution != nil {
+		fmt.Println("Error executing template in getPostByID:", errExecution.Error())
+		return
+	}
+
+	w.Write(resp.Bytes())
 }
 
 func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
 
+	postIDStr, ok := vars["post_id"]
+	if !ok {
+		h.Logger.Println("no post_id in query in GetByID")
+		http.Error(w, "no post_id in query in GetByID", http.StatusBadRequest)
+		return
+	}
+
+	postID := getIDFromString(postIDStr)
+
+	sess, errSess := session.SessionFromContext(r.Context())
+	if errSess != nil {
+		h.Logger.Println("error getting session in AddComment:", errSess.Error())
+		http.Error(w, fmt.Sprintf(`error getting session in AddComment: %s`, errSess.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	defer r.Body.Close()
+
+	bodyRaw, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Println("error reading body in AddComment")
+		return
+	}
+
+	body := &struct{ Comment string }{}
+
+	errorUnmarshal := json.Unmarshal(bodyRaw, body)
+	if errorUnmarshal != nil {
+		fmt.Println("error unmarshling in AddComment:", errorUnmarshal.Error())
+		return
+	}
+
+	newComment, errAdd := h.CommentsRepo.Add(postID, body.Comment, sess.User)
+	if errAdd != nil {
+		h.Logger.Println("error adding in AddComment:", errAdd.Error())
+		http.Error(w, fmt.Sprintf(`error addinc comment in AddComment: %s`, errAdd.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	foundPost, errFind := h.PostsRepo.GetByID(postID)
+	if errFind != nil {
+		h.Logger.Println("cant find post in AddComment:", errFind.Error())
+		http.Error(w, fmt.Sprintln("cant find post in AddComment:", errFind.Error()), http.StatusBadRequest)
+		return
+	}
+
+	foundPost.Comments = append(foundPost.Comments, *newComment)
+
+	tmpl := template.New("")
+	tmpl, errParse := tmpl.Parse(postTemplate)
+	if errParse != nil {
+		fmt.Println("Error parsing", errParse.Error())
+	}
+	var resp bytes.Buffer
+
+	errExecution := tmpl.Execute(&resp, foundPost)
+	if errExecution != nil {
+		fmt.Println("Error executing template:", errExecution.Error())
+		return
+	}
+
+	w.Write(resp.Bytes())
 }
 
 func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
@@ -152,6 +294,44 @@ func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
 
 func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 
+}
+
+func (h *PostsHandler) GetByCategory(w http.ResponseWriter, r *http.Request) {
+	// vars := mux.Vars(r)
+	// postIDStr, ok := vars["category_name"]
+	// if !ok {
+	// 	h.Logger.Println("no category_name in query")
+	// 	http.Error(w, "no category_name in query", http.StatusBadRequest)
+	// 	return
+	// }
+
+	// u64, err := strconv.ParseUint(postIDStr, 10, 32)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// postID := uint(u64)
+
+	// foundPost, errFind := h.PostsRepo.GetByID(postID)
+	// if errFind != nil {
+	// 	h.Logger.Println("no such post in repo.getbyid:", errFind.Error())
+	// 	http.Error(w, fmt.Sprintln("no such post in repo.getbyid:", errFind.Error()), http.StatusBadRequest)
+	// 	return
+	// }
+
+	// tmpl := template.New("")
+	// tmpl, errParse := tmpl.Parse(postTemplate)
+	// if errParse != nil {
+	// 	fmt.Println("Error parsing in getPostByID method", errParse.Error())
+	// }
+	// var resp bytes.Buffer
+
+	// errExecution := tmpl.Execute(&resp, foundPost)
+	// if errExecution != nil {
+	// 	fmt.Println("Error executing template in getPostByID:", errExecution.Error())
+	// 	return
+	// }
+
+	// w.Write(resp.Bytes())
 }
 
 func (h *PostsHandler) GetAllByUser(w http.ResponseWriter, r *http.Request) {

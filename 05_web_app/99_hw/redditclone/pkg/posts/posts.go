@@ -1,9 +1,15 @@
 package posts
 
+import "redditclone/pkg/comments"
+
 type Post struct {
-	ID               uint
-	Title            string
-	Score            int
+	ID        uint
+	Title     string
+	Score     int
+	VotesList []struct {
+		User string
+		Vote uint
+	}
 	Votes            int
 	Category         string
 	CreatedDTTM      string
@@ -12,6 +18,7 @@ type Post struct {
 	Type             string
 	UpvotePercentage int
 	Views            uint
+	Comments         []comments.Comment
 	Author           struct {
 		Username string
 		ID       uint

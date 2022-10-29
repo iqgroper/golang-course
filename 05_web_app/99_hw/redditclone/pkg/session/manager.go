@@ -36,7 +36,7 @@ func (sm *SessionsManager) Check(r *http.Request) (*Session, error) {
 		return []byte(ExampleTokenSecret), nil
 	}
 
-	log.Println("session id value:", sessionCookie.Value)
+	// log.Println("session id value:", sessionCookie.Value)
 
 	token, err := jwt.Parse(sessionCookie.Value, hashSecretGetter)
 	if err != nil || !token.Valid {
