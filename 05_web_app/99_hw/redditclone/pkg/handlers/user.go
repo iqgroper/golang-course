@@ -94,8 +94,3 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write([]byte(fmt.Sprintf(`{"token": "%s"}`, newSession.ID)))
 }
-
-// func (h *UserHandler) Logout(w http.ResponseWriter, r *http.Request) {
-// 	h.Sessions.DestroyCurrent(w, r)
-// 	http.Redirect(w, r, "/", 302)
-// }

@@ -27,8 +27,6 @@ func NewSession(user *user.User) *Session {
 	iat := time.Now()
 	expires := time.Now().Add(90 * 24 * time.Hour)
 
-	//  strconv.FormatUint(uint64(user.ID), 10)
-
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"exp": expires.Unix(),
 		"iat": iat.Unix(),

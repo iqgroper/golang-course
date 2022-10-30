@@ -36,18 +36,11 @@ func (sm *SessionsManager) Check(r *http.Request) (*Session, error) {
 		return []byte(ExampleTokenSecret), nil
 	}
 
-	// log.Println("session id value:", sessionCookie.Value)
-
 	token, err := jwt.Parse(sessionCookie.Value, hashSecretGetter)
 	if err != nil || !token.Valid {
 		log.Println("Error parsing jwt in Check:", err.Error())
 		return nil, fmt.Errorf("error parsing jwt in Check or token is invalid: %s", err.Error())
 	}
-
-	// payload, ok := token.Claims.(jwt.MapClaims)
-	// if !ok {
-	// 	log.Println("Error getting payload from jwt in Check:", err.Error())
-	// }
 
 	sm.mu.RLock()
 	sess, ok := sm.data[sessionCookie.Value]
@@ -75,20 +68,3 @@ func (sm *SessionsManager) Create(w http.ResponseWriter, user *user.User) (*Sess
 	http.SetCookie(w, cookie)
 	return sess, nil
 }
-
-// func (sm *SessionsManager) DestroyCurrent(w http.ResponseWriter, r *http.Request) error {
-// 	sess, err := SessionFromContext(r.Context())
-// 	if err != nil {
-// 		return err
-// 	}
-// 	sm.mu.Lock()
-// 	delete(sm.data, sess.ID)
-// 	sm.mu.Unlock()
-// 	cookie := http.Cookie{
-// 		Name:    "session_id",
-// 		Expires: time.Now().AddDate(0, 0, -1),
-// 		Path:    "/",
-// 	}
-// 	http.SetCookie(w, &cookie)
-// 	return nil
-// }

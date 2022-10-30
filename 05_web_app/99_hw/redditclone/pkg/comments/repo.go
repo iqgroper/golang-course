@@ -87,12 +87,3 @@ func (repo *CommentMemoryRepository) DeleteAllByPost(post_id uint) (bool, error)
 	repo.data = newData
 	return true, nil
 }
-
-// func (repo *CommentMemoryRepository) GetByID(id uint32) (*Post, error) {
-// 	for _, item := range repo.data {
-// 		if item.ID == id {
-// 			return item, nil
-// 		}
-// 	}
-// 	return nil, nil
-// }

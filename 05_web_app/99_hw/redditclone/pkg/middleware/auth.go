@@ -29,7 +29,7 @@ func Auth(sm *session.SessionsManager, next http.Handler) http.Handler {
 		_, canbeWithouthSess := noSessUrls[r.URL.Path]
 		if err != nil && !canbeWithouthSess {
 			fmt.Println("no auth:", err.Error())
-			http.Redirect(w, r, "/", http.StatusFound)
+			http.Redirect(w, r, "/api/posts/", http.StatusFound)
 			return
 		}
 		ctx := session.ContextWithSession(r.Context(), sess)

@@ -41,8 +41,8 @@ func main() {
 
 	r := mux.NewRouter()
 	mux := middleware.Auth(sm, r)
-	// mux = middleware.AccessLog(logger, mux)
-	// mux = middleware.Panic(mux)
+	mux = middleware.AccessLog(logger, mux)
+	mux = middleware.Panic(mux)
 
 	fs := http.FileServer(http.Dir("../../"))
 	http.Handle("/static/", fs)
