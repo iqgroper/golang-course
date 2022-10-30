@@ -7,7 +7,7 @@ import (
 
 var (
 	ErrNoUser     = errors.New("no user found")
-	ErrUserExists = errors.New("User already exists")
+	ErrUserExists = errors.New("already exists")
 	ErrBadPass    = errors.New("invald password")
 )
 

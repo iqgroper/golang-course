@@ -51,7 +51,8 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err == user.ErrBadPass {
-		http.Error(w, `bad password`, http.StatusBadRequest)
+		h.Logger.Println("error in Login:", err.Error())
+		http.Error(w, `{"message": "invalid password"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -79,9 +80,9 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}).Info("Register")
 
 	createdUser, errRegister := h.UserRepo.Register(newUser.Username, newUser.Password)
-	if errRegister != nil {
-		h.Logger.Println("error registring user: ", errRegister)
-		http.Error(w, fmt.Sprintf(`error registring user: %s`, errRegister.Error()), http.StatusBadRequest)
+	if errRegister == user.ErrUserExists {
+		h.Logger.Println("error registring user: ", errRegister.Error())
+		http.Error(w, fmt.Sprintf(`{"errors":[{"location":"body","param":"username","value":"%s","msg":"%s"}]}`, newUser.Username, errRegister.Error()), http.StatusUnprocessableEntity)
 		return
 	}
 
