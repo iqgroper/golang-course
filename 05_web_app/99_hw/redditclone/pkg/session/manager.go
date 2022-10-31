@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"redditclone/pkg/user"
+	"strings"
 	"sync"
 
 	"github.com/dgrijalva/jwt-go"
@@ -23,8 +24,9 @@ func NewSessionsManager() *SessionsManager {
 }
 
 func (sm *SessionsManager) Check(r *http.Request) (*Session, error) {
-	sessionCookie, err := r.Cookie("session_id")
-	if err == http.ErrNoCookie {
+
+	authTokenStr, ok := r.Header["Authorization"]
+	if !ok {
 		return nil, ErrNoAuth
 	}
 
@@ -36,14 +38,15 @@ func (sm *SessionsManager) Check(r *http.Request) (*Session, error) {
 		return []byte(ExampleTokenSecret), nil
 	}
 
-	token, err := jwt.Parse(sessionCookie.Value, hashSecretGetter)
+	authToken := strings.Split(authTokenStr[0], " ")[1]
+	token, err := jwt.Parse(authToken, hashSecretGetter)
 	if err != nil || !token.Valid {
 		log.Println("Error parsing jwt in Check:", err.Error())
 		return nil, fmt.Errorf("error parsing jwt in Check or token is invalid: %s", err.Error())
 	}
 
 	sm.mu.RLock()
-	sess, ok := sm.data[sessionCookie.Value]
+	sess, ok := sm.data[authToken]
 	sm.mu.RUnlock()
 
 	if !ok {
@@ -60,11 +63,5 @@ func (sm *SessionsManager) Create(w http.ResponseWriter, user *user.User) (*Sess
 	sm.data[sess.ID] = sess
 	sm.mu.Unlock()
 
-	cookie := &http.Cookie{
-		Name:    "session_id",
-		Value:   sess.ID,
-		Expires: sess.Expires,
-	}
-	http.SetCookie(w, cookie)
 	return sess, nil
 }

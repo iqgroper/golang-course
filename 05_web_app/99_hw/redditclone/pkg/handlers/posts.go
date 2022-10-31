@@ -61,8 +61,8 @@ func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 
 	sess, errSess := session.SessionFromContext(r.Context())
 	if errSess != nil {
-		h.Logger.Println("error getting session in Add:", errSess.Error())
-		http.Error(w, fmt.Sprintf(`error getting session in Add: %s`, errSess.Error()), http.StatusInternalServerError)
+		h.Logger.Println("error getting session in AddPost:", errSess.Error())
+		http.Error(w, fmt.Sprintf(`error getting session in AddPost: %s`, errSess.Error()), http.StatusInternalServerError)
 		return
 	}
 	newPost.Author = *sess.User

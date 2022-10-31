@@ -47,7 +47,8 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	userToLogIn, err := h.UserRepo.Authorize(newUser.Username, newUser.Password)
 	if err == user.ErrNoUser {
-		http.Error(w, `no user`, http.StatusBadRequest)
+		h.Logger.Println("error in Login:", err.Error())
+		http.Error(w, `{"message":"user not found"}`, http.StatusUnauthorized)
 		return
 	}
 	if err == user.ErrBadPass {
