@@ -2,7 +2,7 @@ package posts
 
 import (
 	"errors"
-	"fmt"
+	"redditclone/pkg/comments"
 	"redditclone/pkg/user"
 	"sync"
 	"time"
@@ -66,27 +66,21 @@ func (repo *PostMemoryRepository) GetByUser(user_login string) ([]*Post, error) 
 
 func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 
-	current_time := time.Now()
 	newPost := &Post{
-		ID:            repo.lastID,
-		Title:         item.Title,
-		Score:         1,
-		PositiveVotes: 1,
-		VotesList: []struct {
-			User string
-			Vote int
-		}{{item.Author.Login, 1}},
+		ID:               repo.lastID,
+		Title:            item.Title,
+		Score:            1,
+		PositiveVotes:    1,
+		VotesList:        []VoteStruct{{item.Author.Login, 1}},
 		Category:         item.Category,
-		CreatedDTTM:      fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d", current_time.Year(), current_time.Month(), current_time.Day(), current_time.Hour(), current_time.Minute(), current_time.Second()),
+		Comments:         make([]*comments.Comment, 0, 10),
+		CreatedDTTM:      time.Now(),
 		Text:             item.Text,
 		URL:              item.URL,
 		Type:             item.Type,
 		UpvotePercentage: 100,
 		Views:            0,
-		Author: struct {
-			Username string
-			ID       uint
-		}{item.Author.Login, item.Author.ID},
+		Author:           AuthorStruct{item.Author.Login, item.Author.ID},
 	}
 	repo.lastID++
 
@@ -153,10 +147,7 @@ func (repo *PostMemoryRepository) UpVote(post_id uint, username string) (*Post, 
 				item.UpvotePercentage = (item.PositiveVotes * 100) / (item.PositiveVotes + item.NegativeVotes)
 			}
 
-			item.VotesList = append(item.VotesList, struct {
-				User string
-				Vote int
-			}{username, 1})
+			item.VotesList = append(item.VotesList, VoteStruct{username, 1})
 			return item, nil
 		}
 	}
@@ -180,10 +171,7 @@ func (repo *PostMemoryRepository) DownVote(post_id uint, username string) (*Post
 				item.UpvotePercentage = (item.PositiveVotes * 100) / (item.PositiveVotes + item.NegativeVotes)
 			}
 
-			item.VotesList = append(item.VotesList, struct {
-				User string
-				Vote int
-			}{username, -1})
+			item.VotesList = append(item.VotesList, VoteStruct{username, -1})
 			return item, nil
 		}
 	}
@@ -225,10 +213,7 @@ LOOP:
 	if voteIndexToRemove < len(repo.data[postIndexToRemove].VotesList)-1 {
 		copy(repo.data[postIndexToRemove].VotesList[voteIndexToRemove:], repo.data[postIndexToRemove].VotesList[voteIndexToRemove+1:])
 	}
-	repo.data[postIndexToRemove].VotesList[len(repo.data[postIndexToRemove].VotesList)-1] = struct {
-		User string
-		Vote int
-	}{}
+	repo.data[postIndexToRemove].VotesList[len(repo.data[postIndexToRemove].VotesList)-1] = VoteStruct{}
 	repo.data[postIndexToRemove].VotesList = repo.data[postIndexToRemove].VotesList[:len(repo.data[postIndexToRemove].VotesList)-1]
 	repo.mu.Unlock()
 

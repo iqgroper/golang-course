@@ -1,31 +1,37 @@
 package posts
 
-import "redditclone/pkg/comments"
+import (
+	"redditclone/pkg/comments"
+	"time"
+)
 
 type Post struct {
-	ID        uint
-	Title     string
-	Score     int
-	VotesList []struct {
-		User string
-		Vote int
-	}
-	PositiveVotes    int
-	NegativeVotes    int
-	Category         string
-	CreatedDTTM      string
-	Text             string
-	URL              string
-	Type             string
-	UpvotePercentage int
-	Views            uint
-	Comments         []*comments.Comment
-	Author           struct {
-		Username string
-		ID       uint
-	}
+	ID               uint                `json:"id,string"`
+	Title            string              `json:"title"`
+	Score            int                 `json:"score"`
+	VotesList        []VoteStruct        `json:"votes"`
+	PositiveVotes    int                 `json:"-"`
+	NegativeVotes    int                 `json:"-"`
+	Category         string              `json:"category"`
+	CreatedDTTM      time.Time           `json:"created"`
+	Text             string              `json:"text,omitempty"`
+	URL              string              `json:"url,omitempty"`
+	Type             string              `json:"type"`
+	UpvotePercentage int                 `json:"upvotePercentage"`
+	Views            uint                `json:"views"`
+	Comments         []*comments.Comment `json:"comments"`
+	Author           AuthorStruct        `json:"author"`
 }
 
+type VoteStruct struct {
+	User string `json:"user"`
+	Vote int    `json:"vote"`
+}
+
+type AuthorStruct struct {
+	Username string `json:"username"`
+	ID       uint   `json:"id,string"`
+}
 type PostRepo interface {
 	GetAll() ([]*Post, error)
 	Add(item *NewPost) (*Post, error)

@@ -1,10 +1,8 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"net/http"
 	"strconv"
@@ -22,42 +20,6 @@ type PostsHandler struct {
 	CommentsRepo comments.CommentRepo
 	Logger       *logrus.Entry
 }
-
-const postTemplate = `
-{"score":{{.Score}},
-"views":{{.Views}},
-"type":"{{.Type}}",
-"title":"{{.Title}}",
-"author":{"username":"{{.Author.Username}}","id":"{{.Author.ID}}"},
-"category":"{{.Category}}",
-{{if (eq .Type "text")}}
-"text":"{{.Text}}",
-{{else}}
-"url":"{{.URL}}",
-{{end}}
-"votes":[
-	{{$first := 1}}
-	{{range .VotesList}}
-	{{if $first}}{{$first = 0}}{{else}},{{end}}
-		{"user":"{{.User}}","vote":{{.Vote}}}
-	{{end}}
-],
-"comments":[
-	{{$first := 1}}
-	{{range .Comments}}
-	{{if $first}}{{$first = 0}}{{else}},{{end}}
-	{	
-		"author":{"username":"{{.Author.Login}}", "id":"{{.Author.ID}}"},
-		"body":"{{.Body}}",
-		"created":"{{.Created}}",
-		"id":"{{.ID}}"
-	}
-	{{end}}
-],
-"created":"{{.CreatedDTTM}}",
-"upvotePercentage":{{.UpvotePercentage}},
-"id":"{{.ID}}"}
-`
 
 func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
@@ -91,20 +53,14 @@ func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postTemplate)
-	if errParse != nil {
-		fmt.Println("Error parsing AddPost method", errParse.Error())
-	}
-	var resp bytes.Buffer
-
-	errExecution := tmpl.Execute(&resp, addedPost)
-	if errExecution != nil {
-		fmt.Println("Error executing template in AddPost:", errExecution.Error())
+	resp, errEncoding := json.Marshal(addedPost)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
 		return
 	}
 
-	w.Write(resp.Bytes())
+	w.Write(resp)
 }
 
 func getIDFromString(id string) uint {
@@ -136,25 +92,14 @@ func (h *PostsHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	foundPost.Views += 1
 
-	responseBody := SendPost(foundPost, "GetByID")
-
-	w.Write([]byte(responseBody))
-}
-
-func SendPost(post *posts.Post, function string) string {
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postTemplate)
-	if errParse != nil {
-		fmt.Printf("Error parsing in %s: %s", function, errParse.Error())
+	resp, errEncoding := json.Marshal(foundPost)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
+		return
 	}
-	var resp bytes.Buffer
 
-	errExecution := tmpl.Execute(&resp, post)
-	if errExecution != nil {
-		fmt.Printf("Error executing template in %s: %s", function, errExecution.Error())
-		return ""
-	}
-	return resp.String()
+	w.Write(resp)
 }
 
 func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
@@ -214,9 +159,14 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 
 	foundPost.Comments = append(foundPost.Comments, newComment)
 
-	responseBody := SendPost(foundPost, "AddComment")
+	resp, errEncoding := json.Marshal(foundPost)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
+		return
+	}
 
-	w.Write([]byte(responseBody))
+	w.Write(resp)
 }
 
 func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
@@ -260,9 +210,14 @@ func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	}
 	foundPost.Comments = newComments
 
-	responseBody := SendPost(foundPost, "DeleteComment")
+	resp, errEncoding := json.Marshal(foundPost)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
+		return
+	}
 
-	w.Write([]byte(responseBody))
+	w.Write(resp)
 }
 
 func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
@@ -286,9 +241,8 @@ func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
 
 	foundPost, err := h.PostsRepo.UpVote(postID, sess.User.Login)
 	if err == posts.ErrNoCanDo {
-		h.Logger.Println("no such post in UpVote:", err.Error())
+		h.Logger.Println("no such post in UpVote:", err.Error(), " redirected to unvote")
 		http.Redirect(w, r, fmt.Sprintf("/api/post/%s/unvote", postIDStr), http.StatusFound)
-		// http.Error(w, fmt.Sprintf(`{"message":"%s"}`, err.Error()), http.StatusMethodNotAllowed)
 		return
 	}
 	if err != nil {
@@ -297,9 +251,14 @@ func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseBody := SendPost(foundPost, "UpVote")
+	resp, errEncoding := json.Marshal(foundPost)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
+		return
+	}
 
-	w.Write([]byte(responseBody))
+	w.Write(resp)
 }
 
 func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
@@ -323,9 +282,8 @@ func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
 
 	foundPost, err := h.PostsRepo.DownVote(postID, sess.User.Login)
 	if err == posts.ErrNoCanDo {
-		h.Logger.Println("in DownVote:", err.Error())
+		h.Logger.Println("in DownVote:", err.Error(), " redirected to unvote")
 		http.Redirect(w, r, fmt.Sprintf("/api/post/%s/unvote", postIDStr), http.StatusFound)
-		// http.Error(w, fmt.Sprintf(`{"message":"%s"}`, err.Error()), http.StatusMethodNotAllowed)
 		return
 	}
 	if err != nil {
@@ -334,9 +292,14 @@ func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseBody := SendPost(foundPost, "DownVote")
+	resp, errEncoding := json.Marshal(foundPost)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
+		return
+	}
 
-	w.Write([]byte(responseBody))
+	w.Write(resp)
 }
 
 func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
@@ -375,43 +338,6 @@ func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(resp))
 }
 
-const postsTemplate = `[{{$firstOuter := 1}}{{range .}}{{if $firstOuter}}{{$firstOuter = 0}}{{else}},{{end}}
-	{"score":{{.Score}},
-	"views":{{.Views}},
-	"type":"{{.Type}}",
-	"title":"{{.Title}}",
-	"author":{"username":"{{.Author.Username}}","id":"{{.Author.ID}}"},
-	"category":"{{.Category}}",
-	{{if (eq .Type "text")}}
-	"text":"{{.Text}}",
-	{{else}}
-	"url":"{{.URL}}",
-	{{end}}
-	"votes":[
-		{{$first := 1}}
-		{{range .VotesList}}
-		{{if $first}}{{$first = 0}}{{else}},{{end}}
-			{"user":"{{.User}}","vote":{{.Vote}}}
-		{{end}}
-	],
-	"comments":[
-		{{$first := 1}}
-		{{range .Comments}}
-		{{if $first}}{{$first = 0}}{{else}},{{end}}
-		{	
-			"author":{"username":"{{.Author.Login}}", "id":"{{.Author.ID}}"},
-			"body":"{{.Body}}",
-			"created":"{{.Created}}",
-			"id":"{{.ID}}"
-		}
-		{{end}}
-	],
-	"created":"{{.CreatedDTTM}}",
-	"upvotePercentage":{{.UpvotePercentage}},
-	"id":"{{.ID}}"}
-{{end}}]
-`
-
 func (h *PostsHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	postList, errGetting := h.PostsRepo.GetAll()
@@ -421,19 +347,14 @@ func (h *PostsHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postsTemplate)
-	if errParse != nil {
-		fmt.Printf("Error parsing: %s", errParse.Error())
-	}
-	var resp bytes.Buffer
-
-	errExecution := tmpl.Execute(&resp, postList)
-	if errExecution != nil {
-		fmt.Printf("Error executing template: %s", errExecution.Error())
+	resp, errEncoding := json.Marshal(postList)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
+		return
 	}
 
-	w.Write(resp.Bytes())
+	w.Write(resp)
 }
 
 func (h *PostsHandler) GetByCategory(w http.ResponseWriter, r *http.Request) {
@@ -452,19 +373,14 @@ func (h *PostsHandler) GetByCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postsTemplate)
-	if errParse != nil {
-		fmt.Printf("Error parsing: %s", errParse.Error())
-	}
-	var resp bytes.Buffer
-
-	errExecution := tmpl.Execute(&resp, postList)
-	if errExecution != nil {
-		fmt.Printf("Error executing template: %s", errExecution.Error())
+	resp, errEncoding := json.Marshal(postList)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
+		return
 	}
 
-	w.Write(resp.Bytes())
+	w.Write(resp)
 }
 
 func (h *PostsHandler) GetAllByUser(w http.ResponseWriter, r *http.Request) {
@@ -483,19 +399,14 @@ func (h *PostsHandler) GetAllByUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(postsTemplate)
-	if errParse != nil {
-		fmt.Printf("Error parsing: %s", errParse.Error())
-	}
-	var resp bytes.Buffer
-
-	errExecution := tmpl.Execute(&resp, postList)
-	if errExecution != nil {
-		fmt.Printf("Error executing template: %s", errExecution.Error())
+	resp, errEncoding := json.Marshal(postList)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
+		return
 	}
 
-	w.Write(resp.Bytes())
+	w.Write(resp)
 }
 
 func (h *PostsHandler) UnVote(w http.ResponseWriter, r *http.Request) {
@@ -524,7 +435,12 @@ func (h *PostsHandler) UnVote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseBody := SendPost(foundPost, "UnVote")
+	resp, errEncoding := json.Marshal(foundPost)
+	if errEncoding != nil {
+		h.Logger.Println("error marshalling post:", errEncoding.Error())
+		http.Error(w, fmt.Sprintf(`error marshalling post: %s`, errEncoding.Error()), http.StatusInternalServerError)
+		return
+	}
 
-	w.Write([]byte(responseBody))
+	w.Write(resp)
 }

@@ -2,7 +2,6 @@ package comments
 
 import (
 	"errors"
-	"fmt"
 	"redditclone/pkg/user"
 	"sync"
 	"time"
@@ -39,11 +38,10 @@ func (repo *CommentMemoryRepository) GetAll(post_id uint) ([]*Comment, error) {
 
 func (repo *CommentMemoryRepository) Add(post_id uint, body string, user *user.User) (*Comment, error) {
 
-	current_time := time.Now()
 	newComment := &Comment{
 		ID:      repo.lastID,
 		Body:    body,
-		Created: fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d", current_time.Year(), current_time.Month(), current_time.Day(), current_time.Hour(), current_time.Minute(), current_time.Second()),
+		Created: time.Now(),
 		Author:  user,
 		PostID:  post_id,
 	}

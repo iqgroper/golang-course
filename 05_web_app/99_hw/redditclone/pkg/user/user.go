@@ -1,9 +1,9 @@
 package user
 
 type User struct {
-	ID       uint
-	Login    string
-	password string
+	ID       uint   `json:"id,string"`
+	Login    string `json:"username"`
+	password string `json:"-"`
 }
 
 type NewUser struct {

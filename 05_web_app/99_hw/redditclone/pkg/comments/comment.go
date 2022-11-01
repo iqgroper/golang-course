@@ -1,13 +1,16 @@
 package comments
 
-import "redditclone/pkg/user"
+import (
+	"redditclone/pkg/user"
+	"time"
+)
 
 type Comment struct {
-	ID      uint
-	Body    string
-	Created string
-	Author  *user.User
-	PostID  uint
+	ID      uint       `json:"id,string"`
+	Body    string     `json:"body"`
+	Created time.Time  `json:"created"`
+	Author  *user.User `json:"author"`
+	PostID  uint       `json:"-"`
 }
 
 type CommentRepo interface {
