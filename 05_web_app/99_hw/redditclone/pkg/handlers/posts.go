@@ -351,8 +351,6 @@ func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 
 	postID := getIDFromString(postIDStr)
 
-	fmt.Println("post id", postID)
-
 	_, errDel := h.PostsRepo.Delete(postID)
 	if errDel != nil {
 		h.Logger.Println("in DeletePost:", errDel.Error())

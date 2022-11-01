@@ -53,7 +53,6 @@ func noAuthMethodsCheck(r *http.Request) bool {
 
 func Auth(sm *session.SessionsManager, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("auth middle:", r.URL.Path, r.Method)
 		if noAuthMethodsCheck(r) {
 			next.ServeHTTP(w, r)
 			return

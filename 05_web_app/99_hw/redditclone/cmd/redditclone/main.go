@@ -42,7 +42,7 @@ func main() {
 	r := mux.NewRouter()
 	mux := middleware.Auth(sm, r)
 	// mux = middleware.AccessLog(logger, mux)
-	// mux = middleware.Panic(mux)
+	mux = middleware.Panic(mux)
 
 	fs := http.FileServer(http.Dir("../../"))
 	http.Handle("/static/", fs)
@@ -69,7 +69,7 @@ func main() {
 
 	http.Handle("/api/", mux)
 
-	port := ":8084"
+	port := ":8080"
 	log.Printf("Listening on %s", port)
 	err := http.ListenAndServe(port, nil)
 	if err != nil {
