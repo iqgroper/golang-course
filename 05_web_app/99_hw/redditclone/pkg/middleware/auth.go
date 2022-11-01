@@ -41,13 +41,13 @@ func noAuthMethodsCheck(r *http.Request) bool {
 		fmt.Println("regexp err", errU.Error())
 	}
 
-	matchedVote, errV := regexp.MatchString(`/api/post/[0-9]+/upvote|/downvote`, path)
+	matchedVote, errV := regexp.MatchString(`/api/post/[0-9]+/upvote|/downvote|/unvote`, path)
 	if errV != nil {
 		fmt.Println("regexp errV", errV.Error())
 	}
 
 	result := (matchedPost || matchedPosts || matchedUser) && !matchedVote && r.Method != "POST" && r.Method != "DELETE"
-	fmt.Println("regexp check:", result)
+
 	return result
 }
 

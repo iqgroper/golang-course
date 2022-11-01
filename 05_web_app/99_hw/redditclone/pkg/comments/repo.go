@@ -41,7 +41,7 @@ func (repo *CommentMemoryRepository) Add(post_id uint, body string, user *user.U
 	newComment := &Comment{
 		ID:      repo.lastID,
 		Body:    body,
-		Created: time.Now().Format("2022-10-28T17:50:44.307Z"),
+		Created: time.Now().String(),
 		Author:  user,
 		PostID:  post_id,
 	}

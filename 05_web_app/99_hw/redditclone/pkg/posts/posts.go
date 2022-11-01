@@ -10,7 +10,8 @@ type Post struct {
 		User string
 		Vote int
 	}
-	Votes            int
+	PositiveVotes    int
+	NegativeVotes    int
 	Category         string
 	CreatedDTTM      string
 	Text             string
@@ -33,5 +34,6 @@ type PostRepo interface {
 	GetByUser(user_login string) ([]*Post, error)
 	UpVote(post_id uint, username string) (*Post, error)
 	DownVote(post_id uint, username string) (*Post, error)
+	UnVote(post_id uint, username string) (*Post, error)
 	Delete(post_id uint) (bool, error)
 }

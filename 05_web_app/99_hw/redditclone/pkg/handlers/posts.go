@@ -23,7 +23,7 @@ type PostsHandler struct {
 	Logger       *logrus.Entry
 }
 
-const newPostTemplate = `
+const postTemplate = `
 {"score":{{.Score}},
 "views":{{.Views}},
 "type":"{{.Type}}",
@@ -35,8 +35,25 @@ const newPostTemplate = `
 {{else}}
 "url":"{{.URL}}",
 {{end}}
-"votes":[{"user":"{{.Author.Username}}","vote":1}],
-"comments":[],
+"votes":[
+	{{$first := 1}}
+	{{range .VotesList}}
+	{{if $first}}{{$first = 0}}{{else}},{{end}}
+		{"user":"{{.User}}","vote":{{.Vote}}}
+	{{end}}
+],
+"comments":[
+	{{$first := 1}}
+	{{range .Comments}}
+	{{if $first}}{{$first = 0}}{{else}},{{end}}
+	{	
+		"author":{"username":"{{.Author.Login}}", "id":"{{.Author.ID}}"},
+		"body":"{{.Body}}",
+		"created":"{{.Created}}",
+		"id":"{{.ID}}"
+	}
+	{{end}}
+],
 "created":"{{.CreatedDTTM}}",
 "upvotePercentage":{{.UpvotePercentage}},
 "id":"{{.ID}}"}
@@ -75,7 +92,7 @@ func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tmpl := template.New("")
-	tmpl, errParse := tmpl.Parse(newPostTemplate)
+	tmpl, errParse := tmpl.Parse(postTemplate)
 	if errParse != nil {
 		fmt.Println("Error parsing AddPost method", errParse.Error())
 	}
@@ -89,42 +106,6 @@ func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 
 	w.Write(resp.Bytes())
 }
-
-const postTemplate = `
-{"score":{{.Score}},
-"views":{{.Views}},
-"type":"{{.Type}}",
-"title":"{{.Title}}",
-"author":{"username":"{{.Author.Username}}","id":"{{.Author.ID}}"},
-"category":"{{.Category}}",
-{{if (eq .Type "text")}}
-"text":"{{.Text}}",
-{{else}}
-"url":"{{.URL}}",
-{{end}}
-"votes":[
-	{{$first := 1}}
-	{{range .VotesList}}
-	{{if $first}}{{$first = 0}}{{else}},{{end}}
-		{"user":"{{.User}}","vote":{{.Vote}}}
-	{{end}}
-],
-"comments":[
-	{{$first := 1}}
-	{{range .Comments}}
-	{{if $first}}{{$first = 0}}{{else}},{{end}}
-	{	
-		"author":{"username":"{{.Author.Login}}", "id":"{{.Author.ID}}"},
-		"body":"{{.Body}}",
-		"created":"{{.Created}}",
-		"id":"{{.ID}}"
-	}
-	{{end}}
-],
-"created":"{{.CreatedDTTM}}",
-"upvotePercentage":{{.UpvotePercentage}},
-"id":"{{.ID}}"}
-`
 
 func getIDFromString(id string) uint {
 	u64, err := strconv.ParseUint(id, 10, 32)
@@ -208,6 +189,12 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 	errorUnmarshal := json.Unmarshal(bodyRaw, body)
 	if errorUnmarshal != nil {
 		fmt.Println("error unmarshling in AddComment:", errorUnmarshal.Error())
+		return
+	}
+
+	if len(body.Comment) == 0 {
+
+		http.Error(w, `{"errors":[{"location":"body","param":"comment","msg":"is required"}]}`, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -298,6 +285,12 @@ func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	foundPost, err := h.PostsRepo.UpVote(postID, sess.User.Login)
+	if err == posts.ErrNoCanDo {
+		h.Logger.Println("no such post in UpVote:", err.Error())
+		http.Redirect(w, r, fmt.Sprintf("/api/post/%s/unvote", postIDStr), http.StatusFound)
+		// http.Error(w, fmt.Sprintf(`{"message":"%s"}`, err.Error()), http.StatusMethodNotAllowed)
+		return
+	}
 	if err != nil {
 		h.Logger.Println(err.Error())
 		http.Error(w, "UpVote:"+err.Error(), http.StatusBadRequest)
@@ -329,6 +322,12 @@ func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	foundPost, err := h.PostsRepo.DownVote(postID, sess.User.Login)
+	if err == posts.ErrNoCanDo {
+		h.Logger.Println("in DownVote:", err.Error())
+		http.Redirect(w, r, fmt.Sprintf("/api/post/%s/unvote", postIDStr), http.StatusFound)
+		// http.Error(w, fmt.Sprintf(`{"message":"%s"}`, err.Error()), http.StatusMethodNotAllowed)
+		return
+	}
 	if err != nil {
 		h.Logger.Println(err.Error())
 		http.Error(w, "DownVote:"+err.Error(), http.StatusBadRequest)
@@ -499,4 +498,37 @@ func (h *PostsHandler) GetAllByUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(resp.Bytes())
+}
+
+func (h *PostsHandler) UnVote(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	postIDStr, ok := vars["post_id"]
+	if !ok {
+		h.Logger.Println("no post_id in query in UnVote")
+		http.Error(w, "no post_id in query in UnVote", http.StatusBadRequest)
+		return
+	}
+
+	postID := getIDFromString(postIDStr)
+
+	sess, errSess := session.SessionFromContext(r.Context())
+	if errSess != nil {
+		h.Logger.Println("error getting session in UnVote:", errSess.Error())
+		http.Error(w, fmt.Sprintf(`error getting session in UnVote: %s`, errSess.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	foundPost, errFind := h.PostsRepo.UnVote(postID, sess.User.Login)
+	if errFind != nil {
+		h.Logger.Println("no such post in UnVote:", errFind.Error())
+		http.Error(w, fmt.Sprintln("no such post in UnVote:", errFind.Error()), http.StatusMethodNotAllowed)
+		return
+	}
+
+	fmt.Println(foundPost)
+
+	responseBody := SendPost(foundPost, "UnVote")
+
+	w.Write([]byte(responseBody))
 }
