@@ -66,6 +66,7 @@ func (repo *PostMemoryRepository) GetByUser(user_login string) ([]*Post, error) 
 
 func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 
+	current_time := time.Now()
 	newPost := &Post{
 		ID:            repo.lastID,
 		Title:         item.Title,
@@ -76,7 +77,7 @@ func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 			Vote int
 		}{{item.Author.Login, 1}},
 		Category:         item.Category,
-		CreatedDTTM:      time.Now().UTC().String(),
+		CreatedDTTM:      fmt.Sprintf("%d-%02d-%02dT%02d:%02d:%02d", current_time.Year(), current_time.Month(), current_time.Day(), current_time.Hour(), current_time.Minute(), current_time.Second()),
 		Text:             item.Text,
 		URL:              item.URL,
 		Type:             item.Type,
@@ -149,7 +150,7 @@ func (repo *PostMemoryRepository) UpVote(post_id uint, username string) (*Post, 
 			if (item.PositiveVotes + item.NegativeVotes) == 0 {
 				item.UpvotePercentage = 0
 			} else {
-				item.UpvotePercentage = item.Score / (item.PositiveVotes + item.NegativeVotes)
+				item.UpvotePercentage = (item.PositiveVotes * 100) / (item.PositiveVotes + item.NegativeVotes)
 			}
 
 			item.VotesList = append(item.VotesList, struct {
@@ -176,7 +177,7 @@ func (repo *PostMemoryRepository) DownVote(post_id uint, username string) (*Post
 			if (item.PositiveVotes + item.NegativeVotes) == 0 {
 				item.UpvotePercentage = 0
 			} else {
-				item.UpvotePercentage = item.Score / (item.PositiveVotes + item.NegativeVotes)
+				item.UpvotePercentage = (item.PositiveVotes * 100) / (item.PositiveVotes + item.NegativeVotes)
 			}
 
 			item.VotesList = append(item.VotesList, struct {
@@ -198,7 +199,6 @@ LOOP:
 			postIndexToRemove = postIdx
 			for idx, voter := range item.VotesList {
 				if voter.User == username {
-					fmt.Println("found comm:", voter.User, username)
 					voteIndexToRemove = idx
 
 					item.Score -= voter.Vote
@@ -212,7 +212,7 @@ LOOP:
 					if (item.PositiveVotes + item.NegativeVotes) == 0 {
 						item.UpvotePercentage = 0
 					} else {
-						item.UpvotePercentage = item.Score / (item.PositiveVotes + item.NegativeVotes)
+						item.UpvotePercentage = (item.PositiveVotes * 100) / (item.PositiveVotes + item.NegativeVotes)
 					}
 
 					break LOOP

@@ -69,7 +69,7 @@ func main() {
 
 	http.Handle("/api/", mux)
 
-	port := ":8082"
+	port := ":8084"
 	log.Printf("Listening on %s", port)
 	err := http.ListenAndServe(port, nil)
 	if err != nil {

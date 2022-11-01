@@ -526,8 +526,6 @@ func (h *PostsHandler) UnVote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(foundPost)
-
 	responseBody := SendPost(foundPost, "UnVote")
 
 	w.Write([]byte(responseBody))
