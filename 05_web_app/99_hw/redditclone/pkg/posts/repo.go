@@ -2,6 +2,7 @@ package posts
 
 import (
 	"errors"
+	"fmt"
 	"redditclone/pkg/comments"
 	"redditclone/pkg/user"
 	"sync"
@@ -70,7 +71,6 @@ func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 		ID:               repo.lastID,
 		Title:            item.Title,
 		Score:            1,
-		PositiveVotes:    1,
 		VotesList:        []VoteStruct{{item.Author.Login, 1}},
 		Category:         item.Category,
 		Comments:         make([]*comments.Comment, 0, 10),
@@ -129,25 +129,50 @@ func (repo *PostMemoryRepository) GetAllByCategory(category string) ([]*Post, er
 	return result, nil
 }
 
+func percetageCount(votes []VoteStruct) int {
+	votesCount := len(votes)
+	if votesCount == 0 {
+		return 0
+	}
+	positiveVotes := 0
+	negativeVotes := 0
+	for _, voter := range votes {
+		if voter.Vote == 1 {
+			positiveVotes++
+		}
+
+		if voter.Vote == -1 {
+			negativeVotes++
+		}
+	}
+
+	result := (positiveVotes * 100) / votesCount
+	if result < 0 {
+		fmt.Println("NEGATIVE VOTES")
+	}
+
+	return result
+}
+
 func (repo *PostMemoryRepository) UpVote(post_id uint, username string) (*Post, error) {
-	for _, item := range repo.data {
+	for indexPost, item := range repo.data {
 		if item.ID == post_id {
 			for _, voter := range item.VotesList {
 				if voter.User == username && voter.Vote == 1 {
 					return nil, ErrNoCanDo
 				}
+				if voter.User == username && voter.Vote == -1 {
+					repo.data[indexPost], _ = repo.UnVote(post_id, username)
+					repo.data[indexPost], _ = repo.UpVote(post_id, username)
+					return repo.data[indexPost], nil
+				}
 			}
 
-			item.PositiveVotes += 1
 			item.Score += 1
 
-			if (item.PositiveVotes + item.NegativeVotes) == 0 {
-				item.UpvotePercentage = 0
-			} else {
-				item.UpvotePercentage = (item.PositiveVotes * 100) / (item.PositiveVotes + item.NegativeVotes)
-			}
-
 			item.VotesList = append(item.VotesList, VoteStruct{username, 1})
+			item.UpvotePercentage = percetageCount(item.VotesList)
+
 			return item, nil
 		}
 	}
@@ -155,23 +180,23 @@ func (repo *PostMemoryRepository) UpVote(post_id uint, username string) (*Post, 
 }
 
 func (repo *PostMemoryRepository) DownVote(post_id uint, username string) (*Post, error) {
-	for _, item := range repo.data {
+	for indexPost, item := range repo.data {
 		if item.ID == post_id {
 			for _, voter := range item.VotesList {
 				if voter.User == username && voter.Vote == -1 {
 					return nil, ErrNoCanDo
 				}
+				if voter.User == username && voter.Vote == 1 {
+					repo.data[indexPost], _ = repo.UnVote(post_id, username)
+					repo.data[indexPost], _ = repo.DownVote(post_id, username)
+					return repo.data[indexPost], nil
+				}
 			}
-			item.NegativeVotes += 1
 			item.Score -= 1
 
-			if (item.PositiveVotes + item.NegativeVotes) == 0 {
-				item.UpvotePercentage = 0
-			} else {
-				item.UpvotePercentage = (item.PositiveVotes * 100) / (item.PositiveVotes + item.NegativeVotes)
-			}
-
 			item.VotesList = append(item.VotesList, VoteStruct{username, -1})
+			item.UpvotePercentage = percetageCount(item.VotesList)
+
 			return item, nil
 		}
 	}
@@ -191,18 +216,6 @@ LOOP:
 
 					item.Score -= voter.Vote
 
-					if voter.Vote == 1 {
-						item.PositiveVotes -= 1
-					} else {
-						item.NegativeVotes -= 1
-					}
-
-					if (item.PositiveVotes + item.NegativeVotes) == 0 {
-						item.UpvotePercentage = 0
-					} else {
-						item.UpvotePercentage = (item.PositiveVotes * 100) / (item.PositiveVotes + item.NegativeVotes)
-					}
-
 					break LOOP
 				}
 			}
@@ -216,6 +229,8 @@ LOOP:
 	repo.data[postIndexToRemove].VotesList[len(repo.data[postIndexToRemove].VotesList)-1] = VoteStruct{}
 	repo.data[postIndexToRemove].VotesList = repo.data[postIndexToRemove].VotesList[:len(repo.data[postIndexToRemove].VotesList)-1]
 	repo.mu.Unlock()
+
+	repo.data[postIndexToRemove].UpvotePercentage = percetageCount(repo.data[postIndexToRemove].VotesList)
 
 	return repo.data[postIndexToRemove], nil
 }

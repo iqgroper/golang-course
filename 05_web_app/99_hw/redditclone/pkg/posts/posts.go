@@ -10,8 +10,6 @@ type Post struct {
 	Title            string              `json:"title"`
 	Score            int                 `json:"score"`
 	VotesList        []VoteStruct        `json:"votes"`
-	PositiveVotes    int                 `json:"-"`
-	NegativeVotes    int                 `json:"-"`
 	Category         string              `json:"category"`
 	CreatedDTTM      time.Time           `json:"created"`
 	Text             string              `json:"text,omitempty"`
