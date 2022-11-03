@@ -64,16 +64,13 @@ func main() {
 	authRouter.HandleFunc("/api/post/{post_id}", postsHandler.DeletePost).Methods("DELETE")
 
 	authMux := middleware.Auth(sm, authRouter)
-	authMux = middleware.AccessLog(logger, authMux)
-	authMux = middleware.Panic(authMux)
-
-	noAuthMux := middleware.AccessLog(logger, noAuthRouter)
-	noAuthMux = middleware.Panic(noAuthMux)
 
 	noAuthRouter.PathPrefix("/api/").Handler(authMux)
-	noAuthRouter.PathPrefix("/api/").Handler(noAuthMux)
 
-	http.Handle("/api/", noAuthRouter)
+	siteMux := middleware.AccessLog(logger, noAuthRouter)
+	siteMux = middleware.Panic(siteMux)
+
+	http.Handle("/api/", siteMux)
 
 	port := ":8080"
 	log.Printf("Listening on %s", port)
