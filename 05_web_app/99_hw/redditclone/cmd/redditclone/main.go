@@ -39,35 +39,41 @@ func main() {
 		Logger:       logger,
 	}
 
-	r := mux.NewRouter()
-	mux := middleware.Auth(sm, r)
-	// mux = middleware.AccessLog(logger, mux)
-	mux = middleware.Panic(mux)
-
 	fs := http.FileServer(http.Dir("../../"))
 	http.Handle("/static/", fs)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../../static/html")
 	})
 
-	r.HandleFunc("/api/register", userHandler.Register).Methods("POST")
-	r.HandleFunc("/api/login", userHandler.Login).Methods("POST")
-	r.HandleFunc("/api/posts/", postsHandler.GetAll).Methods("GET")
-	r.HandleFunc("/api/posts", postsHandler.AddPost).Methods("POST")
-	r.HandleFunc("/api/post/{post_id}", postsHandler.GetByID).Methods("GET")
-	r.HandleFunc("/api/post/{post_id}", postsHandler.AddComment).Methods("POST")
-	r.HandleFunc("/api/post/{post_id}/{comment_id}", postsHandler.DeleteComment).Methods("DELETE")
-	r.HandleFunc("/api/post/{post_id}/upvote", postsHandler.UpVote).Methods("GET")
-	r.HandleFunc("/api/post/{post_id}/downvote", postsHandler.DownVote).Methods("GET")
-	r.HandleFunc("/api/post/{post_id}/unvote", postsHandler.UnVote).Methods("GET")
-	r.HandleFunc("/api/posts/{category_name}", postsHandler.GetByCategory).Methods("GET")
-	r.HandleFunc("/api/user/{user_login}", postsHandler.GetAllByUser).Methods("GET")
-	r.HandleFunc("/api/post/{post_id}", postsHandler.DeletePost).Methods("DELETE")
-	r.HandleFunc("/api/user/{user_login}", postsHandler.GetAllByUser).Methods("GET")
+	authRouter := mux.NewRouter()
+	noAuthRouter := mux.NewRouter()
 
-	// http.Handle("/api/", http.StripPrefix("/api/", r))
+	noAuthRouter.HandleFunc("/api/register", userHandler.Register).Methods("POST")
+	noAuthRouter.HandleFunc("/api/login", userHandler.Login).Methods("POST")
+	noAuthRouter.HandleFunc("/api/posts/", postsHandler.GetAll).Methods("GET")
+	noAuthRouter.HandleFunc("/api/post/{post_id}", postsHandler.GetByID).Methods("GET")
+	noAuthRouter.HandleFunc("/api/posts/{category_name}", postsHandler.GetByCategory).Methods("GET")
+	noAuthRouter.HandleFunc("/api/user/{user_login}", postsHandler.GetAllByUser).Methods("GET")
 
-	http.Handle("/api/", mux)
+	authRouter.HandleFunc("/api/posts", postsHandler.AddPost).Methods("POST")
+	authRouter.HandleFunc("/api/post/{post_id}", postsHandler.AddComment).Methods("POST")
+	authRouter.HandleFunc("/api/post/{post_id}/{comment_id}", postsHandler.DeleteComment).Methods("DELETE")
+	authRouter.HandleFunc("/api/post/{post_id}/upvote", postsHandler.UpVote).Methods("GET")
+	authRouter.HandleFunc("/api/post/{post_id}/downvote", postsHandler.DownVote).Methods("GET")
+	authRouter.HandleFunc("/api/post/{post_id}/unvote", postsHandler.UnVote).Methods("GET")
+	authRouter.HandleFunc("/api/post/{post_id}", postsHandler.DeletePost).Methods("DELETE")
+
+	authMux := middleware.Auth(sm, authRouter)
+	authMux = middleware.AccessLog(logger, authMux)
+	authMux = middleware.Panic(authMux)
+
+	noAuthMux := middleware.AccessLog(logger, noAuthRouter)
+	noAuthMux = middleware.Panic(noAuthMux)
+
+	noAuthRouter.PathPrefix("/api/").Handler(authMux)
+	noAuthRouter.PathPrefix("/api/").Handler(noAuthMux)
+
+	http.Handle("/api/", noAuthRouter)
 
 	port := ":8080"
 	log.Printf("Listening on %s", port)
