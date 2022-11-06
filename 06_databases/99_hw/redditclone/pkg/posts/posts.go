@@ -6,7 +6,7 @@ import (
 )
 
 type Post struct {
-	ID               uint                `json:"id,string"`
+	ID               string              `json:"id"`
 	Title            string              `json:"title"`
 	Score            int                 `json:"score"`
 	VotesList        []VoteStruct        `json:"votes"`
@@ -34,10 +34,10 @@ type PostRepo interface {
 	GetAll() ([]*Post, error)
 	Add(item *NewPost) (*Post, error)
 	GetAllByCategory(category string) ([]*Post, error)
-	GetByID(post_id uint) (*Post, error)
+	GetByID(post_id string) (*Post, error)
 	GetByUser(user_login string) ([]*Post, error)
-	UpVote(post_id uint, username string) (*Post, error)
-	DownVote(post_id uint, username string) (*Post, error)
-	UnVote(post_id uint, username string) (*Post, error)
-	Delete(post_id uint) (bool, error)
+	UpVote(post_id, username string) (*Post, error)
+	DownVote(post_id, username string) (*Post, error)
+	UnVote(post_id, username string) (*Post, error)
+	Delete(post_id string) (bool, error)
 }

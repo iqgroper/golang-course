@@ -3,6 +3,7 @@ package comments
 import (
 	"errors"
 	"redditclone/pkg/user"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -12,7 +13,7 @@ var (
 )
 
 type CommentMemoryRepository struct {
-	lastID uint
+	lastID int
 	data   []*Comment
 	mu     *sync.RWMutex
 }
@@ -25,7 +26,7 @@ func NewMemoryRepo() *CommentMemoryRepository {
 	}
 }
 
-func (repo *CommentMemoryRepository) GetAll(post_id uint) ([]*Comment, error) {
+func (repo *CommentMemoryRepository) GetAll(post_id string) ([]*Comment, error) {
 	result := make([]*Comment, 0, 10)
 	for _, item := range repo.data {
 		if item.PostID == post_id {
@@ -36,10 +37,10 @@ func (repo *CommentMemoryRepository) GetAll(post_id uint) ([]*Comment, error) {
 	return result, nil
 }
 
-func (repo *CommentMemoryRepository) Add(post_id uint, body string, user *user.User) (*Comment, error) {
+func (repo *CommentMemoryRepository) Add(post_id string, body string, user *user.User) (*Comment, error) {
 
 	newComment := &Comment{
-		ID:      repo.lastID,
+		ID:      strconv.Itoa(repo.lastID),
 		Body:    body,
 		Created: time.Now(),
 		Author:  user,
@@ -54,7 +55,7 @@ func (repo *CommentMemoryRepository) Add(post_id uint, body string, user *user.U
 	return newComment, nil
 }
 
-func (repo *CommentMemoryRepository) Delete(post_id, comment_id uint) (bool, error) {
+func (repo *CommentMemoryRepository) Delete(post_id, comment_id string) (bool, error) {
 	i := -1
 	for idx, item := range repo.data {
 		if item.ID == comment_id && item.PostID == post_id {
@@ -77,7 +78,7 @@ func (repo *CommentMemoryRepository) Delete(post_id, comment_id uint) (bool, err
 	return true, nil
 }
 
-func (repo *CommentMemoryRepository) DeleteAllByPost(post_id uint) (bool, error) {
+func (repo *CommentMemoryRepository) DeleteAllByPost(post_id string) (bool, error) {
 	newData := make([]*Comment, 0, len(repo.data))
 	for _, item := range repo.data {
 		if item.PostID != post_id {

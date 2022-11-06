@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"redditclone/pkg/comments"
 	"redditclone/pkg/posts"
@@ -63,25 +62,15 @@ func (h *PostsHandler) AddPost(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
-func getIDFromString(id string) uint {
-	u64, err := strconv.ParseUint(id, 10, 32)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return uint(u64)
-}
-
 func (h *PostsHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	postIDStr, ok := vars["post_id"]
+	postID, ok := vars["post_id"]
 	if !ok {
 		h.Logger.Println("no post_id in query in GetByID")
 		http.Error(w, "no post_id in query in GetByID", http.StatusBadRequest)
 		return
 	}
-
-	postID := getIDFromString(postIDStr)
 
 	foundPost, errFind := h.PostsRepo.GetByID(postID)
 	if errFind != nil {
@@ -105,14 +94,12 @@ func (h *PostsHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	postIDStr, ok := vars["post_id"]
+	postID, ok := vars["post_id"]
 	if !ok {
 		h.Logger.Println("no post_id in query in AddComment")
 		http.Error(w, "no post_id in query in AddComment", http.StatusBadRequest)
 		return
 	}
-
-	postID := getIDFromString(postIDStr)
 
 	sess, errSess := session.SessionFromContext(r.Context())
 	if errSess != nil {
@@ -172,21 +159,18 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	postIDStr, ok := vars["post_id"]
+	postID, ok := vars["post_id"]
 	if !ok {
 		h.Logger.Println("no post_id in query in DeleteComment")
 		http.Error(w, "no post_id in query in DeleteComment", http.StatusBadRequest)
 		return
 	}
-	commentIDStr, ok := vars["comment_id"]
+	commentID, ok := vars["comment_id"]
 	if !ok {
 		h.Logger.Println("no comment_id in query in DeleteComment")
 		http.Error(w, "no comment_id in query in DeleteComment", http.StatusBadRequest)
 		return
 	}
-
-	postID := getIDFromString(postIDStr)
-	commentID := getIDFromString(commentIDStr)
 
 	ok, err := h.CommentsRepo.Delete(postID, commentID)
 	if !ok || err != nil {
@@ -223,14 +207,12 @@ func (h *PostsHandler) DeleteComment(w http.ResponseWriter, r *http.Request) {
 func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	postIDStr, ok := vars["post_id"]
+	postID, ok := vars["post_id"]
 	if !ok {
 		h.Logger.Println("no post_id in query in UpVote")
 		http.Error(w, "no post_id in query in UpVote", http.StatusBadRequest)
 		return
 	}
-
-	postID := getIDFromString(postIDStr)
 
 	sess, errSess := session.SessionFromContext(r.Context())
 	if errSess != nil {
@@ -242,7 +224,7 @@ func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
 	foundPost, err := h.PostsRepo.UpVote(postID, sess.User.Login)
 	if err == posts.ErrNoCanDo {
 		h.Logger.Println("no such post in UpVote:", err.Error(), " redirected to unvote")
-		http.Redirect(w, r, fmt.Sprintf("/api/post/%s/unvote", postIDStr), http.StatusFound)
+		http.Redirect(w, r, fmt.Sprintf("/api/post/%s/unvote", postID), http.StatusFound)
 		return
 	}
 	if err != nil {
@@ -264,14 +246,12 @@ func (h *PostsHandler) UpVote(w http.ResponseWriter, r *http.Request) {
 func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	postIDStr, ok := vars["post_id"]
+	postID, ok := vars["post_id"]
 	if !ok {
 		h.Logger.Println("no post_id in query in DownVote")
 		http.Error(w, "no post_id in query in DownVote", http.StatusBadRequest)
 		return
 	}
-
-	postID := getIDFromString(postIDStr)
 
 	sess, errSess := session.SessionFromContext(r.Context())
 	if errSess != nil {
@@ -283,7 +263,7 @@ func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
 	foundPost, err := h.PostsRepo.DownVote(postID, sess.User.Login)
 	if err == posts.ErrNoCanDo {
 		h.Logger.Println("in DownVote:", err.Error(), " redirected to unvote")
-		http.Redirect(w, r, fmt.Sprintf("/api/post/%s/unvote", postIDStr), http.StatusFound)
+		http.Redirect(w, r, fmt.Sprintf("/api/post/%s/unvote", postID), http.StatusFound)
 		return
 	}
 	if err != nil {
@@ -305,14 +285,12 @@ func (h *PostsHandler) DownVote(w http.ResponseWriter, r *http.Request) {
 func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	postIDStr, ok := vars["post_id"]
+	postID, ok := vars["post_id"]
 	if !ok {
 		h.Logger.Println("no post_id in query in DeletePost")
 		http.Error(w, "no post_id in query in DeletePost", http.StatusBadRequest)
 		return
 	}
-
-	postID := getIDFromString(postIDStr)
 
 	_, errDel := h.PostsRepo.Delete(postID)
 	if errDel != nil {
@@ -412,14 +390,12 @@ func (h *PostsHandler) GetAllByUser(w http.ResponseWriter, r *http.Request) {
 func (h *PostsHandler) UnVote(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	postIDStr, ok := vars["post_id"]
+	postID, ok := vars["post_id"]
 	if !ok {
 		h.Logger.Println("no post_id in query in UnVote")
 		http.Error(w, "no post_id in query in UnVote", http.StatusBadRequest)
 		return
 	}
-
-	postID := getIDFromString(postIDStr)
 
 	sess, errSess := session.SessionFromContext(r.Context())
 	if errSess != nil {

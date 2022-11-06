@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"redditclone/pkg/comments"
 	"redditclone/pkg/user"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -15,7 +16,7 @@ var (
 )
 
 type PostMemoryRepository struct {
-	lastID uint
+	lastID int
 	data   []*Post
 	mu     *sync.RWMutex
 }
@@ -41,7 +42,7 @@ func (repo *PostMemoryRepository) GetAll() ([]*Post, error) {
 	return repo.data, nil
 }
 
-func (repo *PostMemoryRepository) GetByID(id uint) (*Post, error) {
+func (repo *PostMemoryRepository) GetByID(id string) (*Post, error) {
 	for _, item := range repo.data {
 		if item.ID == id {
 			return item, nil
@@ -68,7 +69,7 @@ func (repo *PostMemoryRepository) GetByUser(user_login string) ([]*Post, error) 
 func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 
 	newPost := &Post{
-		ID:               repo.lastID,
+		ID:               strconv.Itoa(repo.lastID),
 		Title:            item.Title,
 		Score:            1,
 		VotesList:        []VoteStruct{{item.Author.Login, 1}},
@@ -91,7 +92,7 @@ func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 	return newPost, nil
 }
 
-func (repo *PostMemoryRepository) Delete(id uint) (bool, error) {
+func (repo *PostMemoryRepository) Delete(id string) (bool, error) {
 	i := -1
 	for idx, item := range repo.data {
 		if item.ID == id {
@@ -154,7 +155,7 @@ func percetageCount(votes []VoteStruct) int {
 	return result
 }
 
-func (repo *PostMemoryRepository) UpVote(post_id uint, username string) (*Post, error) {
+func (repo *PostMemoryRepository) UpVote(post_id, username string) (*Post, error) {
 	for indexPost, item := range repo.data {
 		if item.ID == post_id {
 			for _, voter := range item.VotesList {
@@ -179,7 +180,7 @@ func (repo *PostMemoryRepository) UpVote(post_id uint, username string) (*Post, 
 	return nil, ErrNoPost
 }
 
-func (repo *PostMemoryRepository) DownVote(post_id uint, username string) (*Post, error) {
+func (repo *PostMemoryRepository) DownVote(post_id, username string) (*Post, error) {
 	for indexPost, item := range repo.data {
 		if item.ID == post_id {
 			for _, voter := range item.VotesList {
@@ -203,7 +204,7 @@ func (repo *PostMemoryRepository) DownVote(post_id uint, username string) (*Post
 	return nil, ErrNoPost
 }
 
-func (repo *PostMemoryRepository) UnVote(post_id uint, username string) (*Post, error) {
+func (repo *PostMemoryRepository) UnVote(post_id, username string) (*Post, error) {
 	postIndexToRemove := -1
 	voteIndexToRemove := -1
 LOOP:
