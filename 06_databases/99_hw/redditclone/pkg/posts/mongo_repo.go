@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"redditclone/pkg/comments"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -18,7 +20,7 @@ type PostsMongoRepository struct {
 	cancel context.CancelFunc
 }
 
-func NewPostsMongoRepository() *PostsMongoRepository {
+func NewMongoRepository() *PostsMongoRepository {
 	client, errMongo := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost"))
 	if errMongo != nil {
 		panic(errMongo)
@@ -46,71 +48,76 @@ func (repo *PostsMongoRepository) GetAll() ([]*Post, error) {
 		return nil, err
 	}
 
+	PostList := make([]*Post, 0, 5)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	defer cur.Close(ctx)
 	for cur.Next(ctx) {
-		var result bson.D
-		err := cur.Decode(&result)
+		newPost := &Post{}
+		err := cur.Decode(newPost)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println("Error decoding in GetAllPosts")
+			return nil, fmt.Errorf("error decoding in GetAllPosts")
 		}
-		// do something with result....
+		PostList = append(PostList, newPost)
 	}
 	if err := cur.Err(); err != nil {
 		log.Fatal(err)
 	}
 
-	return nil, nil
+	return PostList, nil
 }
 
-func (repo *PostsMongoRepository) GetByID(id uint) (*Post, error) {
+func (repo *PostsMongoRepository) GetByID(id string) (*Post, error) {
 	result := &Post{}
-	filter := bson.D{}
+	objectId, errGettingObject := primitive.ObjectIDFromHex(id)
+	if errGettingObject != nil {
+		log.Println("Error getting object from id")
+	}
+	filter := bson.M{"_id": objectId}
 	err := repo.DB.FindOne(*repo.ctx, filter).Decode(&result)
 	if err == mongo.ErrNoDocuments {
-		// Do something when no record was found
 		fmt.Println("record does not exist")
+		return nil, ErrNoPost
 	} else if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(result)
 	return result, nil
 }
 
 func (repo *PostsMongoRepository) Add(item *NewPost) (*Post, error) {
 
-	// newPost := &Post{
-	// 	Title:            item.Title,
-	// 	Score:            1,
-	// 	VotesList:        []VoteStruct{{item.Author.Login, 1}},
-	// 	Category:         item.Category,
-	// 	Comments:         make([]*comments.Comment, 0, 10),
-	// 	CreatedDTTM:      time.Now(),
-	// 	Text:             item.Text,
-	// 	URL:              item.URL,
-	// 	Type:             item.Type,
-	// 	UpvotePercentage: 100,
-	// 	Views:            0,
-	// 	Author:           AuthorStruct{item.Author.Login, item.Author.ID},
-	// }
+	newPost := &Post{
+		Title:            item.Title,
+		Score:            1,
+		VotesList:        []VoteStruct{{item.Author.Login, 1}},
+		Category:         item.Category,
+		Comments:         make([]*comments.Comment, 0, 10),
+		CreatedDTTM:      time.Now(),
+		Text:             item.Text,
+		URL:              item.URL,
+		Type:             item.Type,
+		UpvotePercentage: 100,
+		Views:            0,
+		Author:           AuthorStruct{item.Author.Login, item.Author.ID},
+	}
 
-	// result, err := repo.DB.InsertOne(*repo.ctx, newPost)
-	// if err != nil {
-	// 	fmt.Print("ADDING POST", err)
-	// 	return nil, err
-	// }
+	result, err := repo.DB.InsertOne(*repo.ctx, newPost)
+	if err != nil {
+		fmt.Print("ADDING POST", err)
+		return nil, err
+	}
 
-	// if id, ok := result.InsertedID.(string); !ok {
-	// 	fmt.Println("WRONG TYPE ID ASSERTION ADDING POST")
-	// 	newPost.ID = id
-	// 	return newPost, nil
-	// }
+	if id, ok := result.InsertedID.(primitive.ObjectID); ok {
+		newPost.ID = id.Hex()
+		return newPost, nil
+	}
 	return nil, fmt.Errorf("something went wrong")
 }
 
-func (repo *PostsMongoRepository) Delete(id uint) (bool, error) {
+func (repo *PostsMongoRepository) Delete(id string) (bool, error) {
 	// i := -1
 	// for idx, item := range repo.data {
 	// 	if item.ID == id {
@@ -166,7 +173,7 @@ func (repo *PostsMongoRepository) GetAllByCategory(category string) ([]*Post, er
 
 }
 
-func (repo *PostsMongoRepository) UpVote(post_id uint, username string) (*Post, error) {
+func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post, error) {
 	// for indexPost, item := range repo.data {
 	// 	if item.ID == post_id {
 	// 		for _, voter := range item.VotesList {
@@ -193,7 +200,7 @@ func (repo *PostsMongoRepository) UpVote(post_id uint, username string) (*Post, 
 
 }
 
-func (repo *PostsMongoRepository) DownVote(post_id uint, username string) (*Post, error) {
+func (repo *PostsMongoRepository) DownVote(post_id string, username string) (*Post, error) {
 	// for indexPost, item := range repo.data {
 	// 	if item.ID == post_id {
 	// 		for _, voter := range item.VotesList {
@@ -219,7 +226,7 @@ func (repo *PostsMongoRepository) DownVote(post_id uint, username string) (*Post
 
 }
 
-func (repo *PostsMongoRepository) UnVote(post_id uint, username string) (*Post, error) {
+func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post, error) {
 	// 	postIndexToRemove := -1
 	// 	voteIndexToRemove := -1
 	// LOOP:

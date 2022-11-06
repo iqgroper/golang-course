@@ -6,7 +6,7 @@ import (
 )
 
 type Post struct {
-	ID               string              `json:"id"`
+	ID               string              `json:"id" bson:"_id"`
 	Title            string              `json:"title"`
 	Score            int                 `json:"score"`
 	VotesList        []VoteStruct        `json:"votes"`

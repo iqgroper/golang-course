@@ -26,7 +26,7 @@ func main() {
 	logger := log.WithFields(log.Fields{})
 
 	userRepo := user.NewMysqlRepo()
-	postsRepo := posts.NewMemoryRepo()
+	postsRepo := posts.NewMongoRepository()
 	commentsRepo := comments.NewMemoryRepo()
 
 	userHandler := &handlers.UserHandler{
