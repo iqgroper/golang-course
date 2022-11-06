@@ -73,7 +73,8 @@ func (repo *PostsMongoRepository) GetByID(id string) (*Post, error) {
 	result := &Post{}
 	objectId, errGettingObject := primitive.ObjectIDFromHex(id)
 	if errGettingObject != nil {
-		log.Println("Error getting object from id")
+		log.Println("Error getting object from id:", id)
+		return nil, errGettingObject
 	}
 	filter := bson.M{"_id": objectId}
 	err := repo.DB.FindOne(*repo.ctx, filter).Decode(&result)
@@ -106,54 +107,60 @@ func (repo *PostsMongoRepository) Add(item *NewPost) (*Post, error) {
 
 	result, err := repo.DB.InsertOne(*repo.ctx, newPost)
 	if err != nil {
-		fmt.Print("ADDING POST", err)
+		fmt.Println("ADDING POST", err)
 		return nil, err
 	}
+	// return newPost, nil
 
 	if id, ok := result.InsertedID.(primitive.ObjectID); ok {
 		newPost.ID = id.Hex()
 		return newPost, nil
+	} else {
+		return nil, fmt.Errorf("id assertion failed")
 	}
-	return nil, fmt.Errorf("something went wrong")
 }
 
 func (repo *PostsMongoRepository) Delete(id string) (bool, error) {
-	// i := -1
-	// for idx, item := range repo.data {
-	// 	if item.ID == id {
-	// 		i = idx
-	// 		break
-	// 	}
-	// }
-	// if i < 0 {
-	// 	return false, ErrNoPost
-	// }
+	objectId, errGettingObject := primitive.ObjectIDFromHex(id)
+	if errGettingObject != nil {
+		log.Println("Error getting object from id")
+		return false, errGettingObject
+	}
+	filter := bson.M{"_id": objectId}
 
-	// repo.mu.Lock()
-	// if i < len(repo.data)-1 {
-	// 	copy(repo.data[i:], repo.data[i+1:])
-	// }
-	// repo.data[len(repo.data)-1] = nil
-	// repo.data = repo.data[:len(repo.data)-1]
-	// repo.mu.Unlock()
-
+	_, err := repo.DB.DeleteOne(*repo.ctx, filter)
+	if err != nil {
+		log.Print(err)
+		return false, err
+	}
 	return true, nil
 }
 
 func (repo *PostsMongoRepository) GetByUser(user_login string) ([]*Post, error) {
-	// result := make([]*Post, 0, 10)
-	// for _, item := range repo.data {
-	// 	if item.Author.Username == user_login {
-	// 		result = append(result, item)
-	// 	}
-	// }
+	cur, err := repo.DB.Find(*repo.ctx, bson.M{"Author": bson.M{"User": user_login}})
+	if err != nil {
+		fmt.Println("GETTING ALL POSTS BY USER", err)
+		return nil, err
+	}
 
-	// if len(result) == 0 {
-	// 	return nil, ErrNoPost
-	// }
+	PostList := make([]*Post, 0, 5)
 
-	// return result, nil
-	return nil, nil
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	defer cur.Close(ctx)
+	for cur.Next(ctx) {
+		newPost := &Post{}
+		err := cur.Decode(newPost)
+		if err != nil {
+			fmt.Println("Error decoding in GetAllPosts")
+			return nil, fmt.Errorf("error decoding in GetAllPosts")
+		}
+		PostList = append(PostList, newPost)
+	}
+	if err := cur.Err(); err != nil {
+		log.Fatal(err)
+	}
+	return PostList, nil
 }
 
 func (repo *PostsMongoRepository) GetAllByCategory(category string) ([]*Post, error) {
