@@ -56,6 +56,11 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message": "invalid password"}`, http.StatusUnauthorized)
 		return
 	}
+	if err != nil {
+		h.Logger.Println("error in Login:", err.Error())
+		http.Error(w, `{"message": "something went wrong"}`, http.StatusInternalServerError)
+		return
+	}
 
 	sess, _ := h.Sessions.Create(w, userToLogIn)
 	h.Logger.WithFields(logrus.Fields{

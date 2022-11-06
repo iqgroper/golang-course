@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
 	"os"
 	"redditclone/pkg/comments"
@@ -9,6 +10,8 @@ import (
 	"redditclone/pkg/posts"
 	"redditclone/pkg/session"
 	"redditclone/pkg/user"
+
+	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
@@ -20,10 +23,30 @@ func init() {
 
 func main() {
 
+	// основные настройки к базе
+	dsn := "root:love@tcp(localhost:3306)/golang?"
+	// указываем кодировку
+	dsn += "charset=utf8"
+	// отказываемся от prapared statements
+	// параметры подставляются сразу
+	dsn += "&interpolateParams=true"
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	db.SetMaxOpenConns(10)
+
+	err = db.Ping() // вот тут будет первое подключение к базе
+	if err != nil {
+		panic(err)
+	}
+
 	sm := session.NewSessionsManager()
 	logger := log.WithFields(log.Fields{})
 
-	userRepo := user.NewMemoryRepo()
+	userRepo := user.NewMysqlRepo(db)
 	postsRepo := posts.NewMemoryRepo()
 	commentsRepo := comments.NewMemoryRepo()
 
@@ -68,14 +91,14 @@ func main() {
 	noAuthRouter.PathPrefix("/api/").Handler(authMux)
 
 	siteMux := middleware.AccessLog(logger, noAuthRouter)
-	siteMux = middleware.Panic(siteMux)
+	// siteMux = middleware.Panic(siteMux)
 
 	http.Handle("/api/", siteMux)
 
 	port := ":8080"
 	log.Printf("Listening on %s", port)
-	err := http.ListenAndServe(port, nil)
-	if err != nil {
-		log.Fatal(err)
+	errServer := http.ListenAndServe(port, nil)
+	if errServer != nil {
+		log.Fatal(errServer)
 	}
 }
