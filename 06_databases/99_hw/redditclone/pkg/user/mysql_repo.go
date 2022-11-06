@@ -9,7 +9,26 @@ type UserMysqlRepository struct {
 	DB *sql.DB
 }
 
-func NewMysqlRepo(db *sql.DB) *UserMysqlRepository {
+func NewMysqlRepo() *UserMysqlRepository {
+	// основные настройки к базе
+	dsn := "root:love@tcp(localhost:3306)/golang?"
+	// указываем кодировку
+	dsn += "charset=utf8"
+	// отказываемся от prapared statements
+	// параметры подставляются сразу
+	dsn += "&interpolateParams=true"
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	db.SetMaxOpenConns(10)
+
+	err = db.Ping() // вот тут будет первое подключение к базе
+	if err != nil {
+		panic(err)
+	}
 	return &UserMysqlRepository{DB: db}
 }
 

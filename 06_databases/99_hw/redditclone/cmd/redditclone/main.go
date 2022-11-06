@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
 	"os"
 	"redditclone/pkg/comments"
@@ -23,31 +22,11 @@ func init() {
 
 func main() {
 
-	// основные настройки к базе
-	dsn := "root:love@tcp(localhost:3306)/golang?"
-	// указываем кодировку
-	dsn += "charset=utf8"
-	// отказываемся от prapared statements
-	// параметры подставляются сразу
-	dsn += "&interpolateParams=true"
-
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		panic(err)
-	}
-
-	db.SetMaxOpenConns(10)
-
-	err = db.Ping() // вот тут будет первое подключение к базе
-	if err != nil {
-		panic(err)
-	}
-
 	sm := session.NewSessionsManager()
 	logger := log.WithFields(log.Fields{})
 
-	userRepo := user.NewMysqlRepo(db)
-	postsRepo := posts.NewMemoryRepo()
+	userRepo := user.NewMysqlRepo()
+	postsRepo := posts.NewPostsMongoRepository()
 	commentsRepo := comments.NewMemoryRepo()
 
 	userHandler := &handlers.UserHandler{
