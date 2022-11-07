@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"redditclone/pkg/comments"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -16,7 +15,7 @@ import (
 
 type PostsMongoRepository struct {
 	DB     *mongo.Collection
-	ctx    *context.Context
+	Ctx    *context.Context
 	Cancel context.CancelFunc
 }
 
@@ -38,11 +37,11 @@ func NewMongoRepository() *PostsMongoRepository {
 	}
 
 	collection := client.Database("coursera").Collection("posts")
-	return &PostsMongoRepository{DB: collection, ctx: &ctx, Cancel: cancel}
+	return &PostsMongoRepository{DB: collection, Ctx: &ctx, Cancel: cancel}
 }
 
 func (repo *PostsMongoRepository) GetAll() ([]*Post, error) {
-	cur, err := repo.DB.Find(*repo.ctx, bson.D{})
+	cur, err := repo.DB.Find(*repo.Ctx, bson.D{})
 	if err != nil {
 		fmt.Println("GETTING ALL POSTS", err)
 		return nil, err
@@ -77,7 +76,7 @@ func (repo *PostsMongoRepository) GetByID(id string) (*Post, error) {
 		return nil, errGettingObject
 	}
 	filter := bson.M{"_id": objectId}
-	err := repo.DB.FindOne(*repo.ctx, filter).Decode(&result)
+	err := repo.DB.FindOne(*repo.Ctx, filter).Decode(&result)
 	if err == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
@@ -95,7 +94,7 @@ func (repo *PostsMongoRepository) Add(item *NewPost) (*Post, error) {
 		Score:            1,
 		VotesList:        []VoteStruct{{item.Author.Login, 1}},
 		Category:         item.Category,
-		Comments:         make([]*comments.Comment, 0, 10),
+		Comments:         make([]*Comment, 0, 10),
 		CreatedDTTM:      time.Now(),
 		Text:             item.Text,
 		URL:              item.URL,
@@ -105,7 +104,7 @@ func (repo *PostsMongoRepository) Add(item *NewPost) (*Post, error) {
 		Author:           AuthorStruct{item.Author.Login, item.Author.ID},
 	}
 
-	result, err := repo.DB.InsertOne(*repo.ctx, newPost)
+	result, err := repo.DB.InsertOne(*repo.Ctx, newPost)
 	if err != nil {
 		fmt.Println("ADDING POST", err)
 		return nil, err
@@ -113,7 +112,7 @@ func (repo *PostsMongoRepository) Add(item *NewPost) (*Post, error) {
 
 	if id, ok := result.InsertedID.(primitive.ObjectID); ok {
 		newPost.ID = id.Hex()
-		res := repo.DB.FindOneAndReplace(*repo.ctx, bson.M{"_id": id}, newPost)
+		res := repo.DB.FindOneAndReplace(*repo.Ctx, bson.M{"_id": id}, newPost)
 		if res.Err() == mongo.ErrNoDocuments {
 			fmt.Println("record does not exist")
 			return nil, ErrNoPost
@@ -134,7 +133,7 @@ func (repo *PostsMongoRepository) Delete(id string) (bool, error) {
 	}
 	filter := bson.M{"_id": objectId}
 
-	_, err := repo.DB.DeleteOne(*repo.ctx, filter)
+	_, err := repo.DB.DeleteOne(*repo.Ctx, filter)
 	if err != nil {
 		log.Print(err)
 		return false, err
@@ -156,7 +155,7 @@ func (repo *PostsMongoRepository) GetByUser(user_login string) ([]*Post, error) 
 		},
 	}
 
-	cur, err := repo.DB.Find(*repo.ctx, filter)
+	cur, err := repo.DB.Find(*repo.Ctx, filter)
 	if err != nil {
 		fmt.Println("ERR GETTING ALL POSTS BY USER", err)
 		return nil, err
@@ -186,7 +185,7 @@ func (repo *PostsMongoRepository) GetAllByCategory(category string) ([]*Post, er
 
 	filter := bson.M{"category": category}
 
-	cur, err := repo.DB.Find(*repo.ctx, filter)
+	cur, err := repo.DB.Find(*repo.Ctx, filter)
 	if err != nil {
 		fmt.Println("ERR GetAllByCategory", err)
 		return nil, err
@@ -222,7 +221,7 @@ func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post
 	}
 
 	filter := bson.M{"_id": objectId}
-	err := repo.DB.FindOne(*repo.ctx, filter).Decode(result)
+	err := repo.DB.FindOne(*repo.Ctx, filter).Decode(result)
 	if err == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
@@ -245,7 +244,7 @@ func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post
 	result.VotesList = append(result.VotesList, VoteStruct{username, 1})
 	result.UpvotePercentage = percetageCount(result.VotesList)
 
-	res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
+	res := repo.DB.FindOneAndReplace(*repo.Ctx, filter, result)
 	if res.Err() == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
@@ -266,7 +265,7 @@ func (repo *PostsMongoRepository) DownVote(post_id string, username string) (*Po
 	}
 
 	filter := bson.M{"_id": objectId}
-	err := repo.DB.FindOne(*repo.ctx, filter).Decode(result)
+	err := repo.DB.FindOne(*repo.Ctx, filter).Decode(result)
 	if err == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
@@ -289,7 +288,7 @@ func (repo *PostsMongoRepository) DownVote(post_id string, username string) (*Po
 	result.VotesList = append(result.VotesList, VoteStruct{username, -1})
 	result.UpvotePercentage = percetageCount(result.VotesList)
 
-	res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
+	res := repo.DB.FindOneAndReplace(*repo.Ctx, filter, result)
 	if res.Err() == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
@@ -311,7 +310,7 @@ func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post
 	}
 
 	filter := bson.M{"_id": objectId}
-	err := repo.DB.FindOne(*repo.ctx, filter).Decode(result)
+	err := repo.DB.FindOne(*repo.Ctx, filter).Decode(result)
 	if err == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
@@ -342,7 +341,7 @@ func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post
 
 	result.UpvotePercentage = percetageCount(result.VotesList)
 	result.IdMongo = objectId
-	res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
+	res := repo.DB.FindOneAndReplace(*repo.Ctx, filter, result)
 	if res.Err() == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost

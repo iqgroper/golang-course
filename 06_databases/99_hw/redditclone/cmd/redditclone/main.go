@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"os"
-	"redditclone/pkg/comments"
 	"redditclone/pkg/handlers"
 	"redditclone/pkg/middleware"
 	"redditclone/pkg/posts"
@@ -27,7 +26,7 @@ func main() {
 
 	userRepo := user.NewMysqlRepo()
 	postsRepo := posts.NewMongoRepository()
-	commentsRepo := comments.NewMemoryRepo()
+	commentsRepo := posts.NewMongoRepo(postsRepo.DB, postsRepo.Ctx, postsRepo.Cancel)
 	defer postsRepo.Cancel()
 
 	userHandler := &handlers.UserHandler{

@@ -1,4 +1,4 @@
-package comments
+package posts
 
 import (
 	"redditclone/pkg/user"
@@ -17,5 +17,4 @@ type CommentRepo interface {
 	Add(post_id string, body string, user *user.User) (*Comment, error)
 	GetAll(post_id string) ([]*Comment, error)
 	Delete(post_id, comment_id string) (bool, error)
-	DeleteAllByPost(post_id string) (bool, error)
 }

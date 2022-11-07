@@ -24,7 +24,7 @@ func NewSessionManager() *SessionsRedisManager {
 		log.Fatalf("cant connect to redis")
 	}
 
-	log.Printf("Connected to Redis")
+	log.Println("Connected to Redis")
 
 	return &SessionsRedisManager{
 		redisConn: conn,
@@ -65,8 +65,6 @@ func (sm *SessionsRedisManager) Check(r *http.Request) (*Session, error) {
 		log.Println("cant unpack session data:", err)
 		return nil, err
 	}
-
-	fmt.Println("session exists")
 
 	return sess, nil
 }

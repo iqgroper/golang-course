@@ -3,7 +3,6 @@ package posts
 import (
 	"errors"
 	"fmt"
-	"redditclone/pkg/comments"
 	"redditclone/pkg/user"
 	"strconv"
 	"sync"
@@ -74,7 +73,7 @@ func (repo *PostMemoryRepository) Add(item *NewPost) (*Post, error) {
 		Score:            1,
 		VotesList:        []VoteStruct{{item.Author.Login, 1}},
 		Category:         item.Category,
-		Comments:         make([]*comments.Comment, 0, 10),
+		Comments:         make([]*Comment, 0, 10),
 		CreatedDTTM:      time.Now(),
 		Text:             item.Text,
 		URL:              item.URL,

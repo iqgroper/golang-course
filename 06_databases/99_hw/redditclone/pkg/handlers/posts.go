@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 
-	"redditclone/pkg/comments"
 	"redditclone/pkg/posts"
 	"redditclone/pkg/session"
 
@@ -16,7 +15,7 @@ import (
 
 type PostsHandler struct {
 	PostsRepo    posts.PostRepo
-	CommentsRepo comments.CommentRepo
+	CommentsRepo posts.CommentRepo
 	Logger       *logrus.Entry
 }
 
@@ -130,7 +129,7 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newComment, errAdd := h.CommentsRepo.Add(postID, body.Comment, sess.User)
+	_, errAdd := h.CommentsRepo.Add(postID, body.Comment, sess.User)
 	if errAdd != nil {
 		h.Logger.Println("error adding in AddComment:", errAdd.Error())
 		http.Error(w, fmt.Sprintf(`error addinc comment in AddComment: %s`, errAdd.Error()), http.StatusInternalServerError)
@@ -143,8 +142,6 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintln("cant find post in AddComment:", errFind.Error()), http.StatusBadRequest)
 		return
 	}
-
-	foundPost.Comments = append(foundPost.Comments, newComment)
 
 	resp, errEncoding := json.Marshal(foundPost)
 	if errEncoding != nil {
@@ -299,16 +296,9 @@ func (h *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := h.CommentsRepo.DeleteAllByPost(postID)
-	if err != nil {
-		h.Logger.Println("cant delete all comments in DeleteCommentByPost", err.Error())
-		http.Error(w, "cant delete all comments in DeleteCommentByPost", http.StatusBadRequest)
-		return
-	}
-
 	resp, errMar := json.Marshal(map[string]string{"message": "success"})
 	if errMar != nil {
-		h.Logger.Println("cant marshal in DeleteCommentByPost", err.Error())
+		h.Logger.Println("cant marshal in DeleteCommentByPost", errMar.Error())
 		http.Error(w, "cant marshal in DeleteCommentByPost "+errMar.Error(), http.StatusInternalServerError)
 		return
 	}

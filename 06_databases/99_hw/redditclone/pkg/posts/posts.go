@@ -1,27 +1,26 @@
 package posts
 
 import (
-	"redditclone/pkg/comments"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Post struct {
-	IdMongo          primitive.ObjectID  `json:"-" bson:"_id,omitempty"`
-	ID               string              `json:"id"`
-	Title            string              `json:"title"`
-	Score            int                 `json:"score"`
-	VotesList        []VoteStruct        `json:"votes"`
-	Category         string              `json:"category"`
-	CreatedDTTM      time.Time           `json:"created"`
-	Text             string              `json:"text,omitempty"`
-	URL              string              `json:"url,omitempty"`
-	Type             string              `json:"type"`
-	UpvotePercentage int                 `json:"upvotePercentage"`
-	Views            uint                `json:"views"`
-	Comments         []*comments.Comment `json:"comments"`
-	Author           AuthorStruct        `json:"author"`
+	IdMongo          primitive.ObjectID `json:"-" bson:"_id,omitempty"`
+	ID               string             `json:"id"`
+	Title            string             `json:"title"`
+	Score            int                `json:"score"`
+	VotesList        []VoteStruct       `json:"votes"`
+	Category         string             `json:"category"`
+	CreatedDTTM      time.Time          `json:"created"`
+	Text             string             `json:"text,omitempty"`
+	URL              string             `json:"url,omitempty"`
+	Type             string             `json:"type"`
+	UpvotePercentage int                `json:"upvotePercentage"`
+	Views            uint               `json:"views"`
+	Comments         []*Comment         `json:"comments"`
+	Author           AuthorStruct       `json:"author"`
 }
 
 type VoteStruct struct {
