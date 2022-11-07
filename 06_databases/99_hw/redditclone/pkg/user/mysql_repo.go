@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 )
 
 type UserMysqlRepository struct {
@@ -65,7 +66,7 @@ func (repo *UserMysqlRepository) Register(login, pass string) (*User, error) {
 	id, _ := result.LastInsertId()
 
 	newUser := &User{
-		ID:       uint(id),
+		ID:       strconv.Itoa(int(id)),
 		Login:    login,
 		password: pass,
 	}

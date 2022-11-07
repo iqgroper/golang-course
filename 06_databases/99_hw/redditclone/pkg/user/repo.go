@@ -2,6 +2,7 @@ package user
 
 import (
 	"errors"
+	"strconv"
 	"sync"
 )
 
@@ -13,7 +14,7 @@ var (
 
 type UserMemoryRepository struct {
 	data   map[string]*User
-	LastID uint
+	LastID int
 	mu     *sync.RWMutex
 }
 
@@ -21,7 +22,7 @@ func NewMemoryRepo() *UserMemoryRepository {
 	return &UserMemoryRepository{
 		data: map[string]*User{
 			"admin": {
-				ID:       0,
+				ID:       strconv.Itoa(0),
 				Login:    "admin",
 				password: "asdfasdf",
 			},
@@ -51,7 +52,7 @@ func (repo *UserMemoryRepository) Register(login, pass string) (*User, error) {
 	}
 
 	newUser := &User{
-		ID:       repo.LastID,
+		ID:       strconv.Itoa(repo.LastID),
 		Login:    login,
 		password: pass,
 	}

@@ -31,7 +31,7 @@ type VoteStruct struct {
 
 type AuthorStruct struct {
 	Username string `json:"username"`
-	ID       uint   `json:"id,string"`
+	ID       string `json:"id"`
 }
 type PostRepo interface {
 	GetAll() ([]*Post, error)

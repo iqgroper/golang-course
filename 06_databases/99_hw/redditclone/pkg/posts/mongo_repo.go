@@ -237,13 +237,6 @@ func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post
 		if voter.User == username && voter.Vote == -1 {
 			_, _ = repo.UnVote(post_id, username)
 			result, _ = repo.UpVote(post_id, username)
-			// res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
-			// if res.Err() == mongo.ErrNoDocuments {
-			// 	fmt.Println("record does not exist")
-			// 	return nil, ErrNoPost
-			// } else if res.Err() != nil {
-			// 	log.Fatal(err)
-			// }
 			return result, nil
 		}
 	}
@@ -288,13 +281,6 @@ func (repo *PostsMongoRepository) DownVote(post_id string, username string) (*Po
 		if voter.User == username && voter.Vote == 1 {
 			_, _ = repo.UnVote(post_id, username)
 			result, _ = repo.DownVote(post_id, username)
-			// res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
-			// if res.Err() == mongo.ErrNoDocuments {
-			// 	fmt.Println("record does not exist")
-			// 	return nil, ErrNoPost
-			// } else if res.Err() != nil {
-			// 	log.Fatal(err)
-			// }
 			return result, nil
 		}
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"redditclone/pkg/user"
-	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -32,7 +31,8 @@ func NewSession(user *user.User) *Session {
 		"iat": iat.Unix(),
 		"user": map[string]string{
 			"username": user.Login,
-			"id":       strconv.FormatUint(uint64(user.ID), 10)},
+			"id":       user.ID,
+		},
 	})
 
 	tokenString, err := token.SignedString([]byte(ExampleTokenSecret))
