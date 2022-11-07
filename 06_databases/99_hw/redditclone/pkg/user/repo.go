@@ -24,7 +24,7 @@ func NewMemoryRepo() *UserMemoryRepository {
 			"admin": {
 				ID:       strconv.Itoa(0),
 				Login:    "admin",
-				password: "asdfasdf",
+				Password: "asdfasdf",
 			},
 		},
 		LastID: 0,
@@ -38,7 +38,7 @@ func (repo *UserMemoryRepository) Authorize(login, pass string) (*User, error) {
 		return nil, ErrNoUser
 	}
 
-	if u.password != pass {
+	if u.Password != pass {
 		return nil, ErrBadPass
 	}
 
@@ -54,7 +54,7 @@ func (repo *UserMemoryRepository) Register(login, pass string) (*User, error) {
 	newUser := &User{
 		ID:       strconv.Itoa(repo.LastID),
 		Login:    login,
-		password: pass,
+		Password: pass,
 	}
 	repo.LastID++
 	repo.mu.RLock()

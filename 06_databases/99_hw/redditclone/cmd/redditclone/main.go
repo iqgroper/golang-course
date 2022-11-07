@@ -70,7 +70,7 @@ func main() {
 	noAuthRouter.PathPrefix("/api/").Handler(authMux)
 
 	siteMux := middleware.AccessLog(logger, noAuthRouter)
-	// siteMux = middleware.Panic(siteMux)
+	siteMux = middleware.Panic(siteMux)
 
 	http.Handle("/api/", siteMux)
 

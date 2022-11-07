@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"strconv"
 )
 
@@ -11,12 +12,8 @@ type UserMysqlRepository struct {
 }
 
 func NewMysqlRepo() *UserMysqlRepository {
-	// основные настройки к базе
 	dsn := "root:love@tcp(localhost:3306)/golang?"
-	// указываем кодировку
 	dsn += "charset=utf8"
-	// отказываемся от prapared statements
-	// параметры подставляются сразу
 	dsn += "&interpolateParams=true"
 
 	db, err := sql.Open("mysql", dsn)
@@ -26,7 +23,7 @@ func NewMysqlRepo() *UserMysqlRepository {
 
 	db.SetMaxOpenConns(10)
 
-	err = db.Ping() // вот тут будет первое подключение к базе
+	err = db.Ping()
 	if err != nil {
 		panic(err)
 	}
@@ -36,16 +33,16 @@ func NewMysqlRepo() *UserMysqlRepository {
 func (repo *UserMysqlRepository) Authorize(login, pass string) (*User, error) {
 	user := &User{}
 	err := repo.DB.QueryRow("SELECT id, login, password FROM items WHERE login = ?;", login).
-		Scan(&user.ID, &user.Login, &user.password)
+		Scan(&user.ID, &user.Login, &user.Password)
 	if err == sql.ErrNoRows {
 		return nil, ErrNoUser
 	}
 	if err != nil {
-		fmt.Println("QueryRow", err)
+		log.Println("QueryRowError", err)
 		return nil, err
 	}
 
-	if user.password != pass {
+	if user.Password != pass {
 		return nil, ErrBadPass
 	}
 
@@ -68,7 +65,7 @@ func (repo *UserMysqlRepository) Register(login, pass string) (*User, error) {
 	newUser := &User{
 		ID:       strconv.Itoa(int(id)),
 		Login:    login,
-		password: pass,
+		Password: pass,
 	}
 
 	return newUser, nil
