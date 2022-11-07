@@ -3,6 +3,7 @@ package posts
 import (
 	"time"
 
+	_ "github.com/golang/mock/mockgen/model"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -32,6 +33,8 @@ type AuthorStruct struct {
 	Username string `json:"username"`
 	ID       string `json:"id"`
 }
+
+//go:generate mockgen -source=repo.go -destination=repo_mock.go -package=posts PostRepo
 type PostRepo interface {
 	GetAll() ([]*Post, error)
 	Add(item *NewPost) (*Post, error)
