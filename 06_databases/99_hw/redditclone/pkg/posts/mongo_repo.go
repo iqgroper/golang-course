@@ -110,10 +110,16 @@ func (repo *PostsMongoRepository) Add(item *NewPost) (*Post, error) {
 		fmt.Println("ADDING POST", err)
 		return nil, err
 	}
-	// return newPost, nil
 
 	if id, ok := result.InsertedID.(primitive.ObjectID); ok {
 		newPost.ID = id.Hex()
+		res := repo.DB.FindOneAndReplace(*repo.ctx, bson.M{"_id": id}, newPost)
+		if res.Err() == mongo.ErrNoDocuments {
+			fmt.Println("record does not exist")
+			return nil, ErrNoPost
+		} else if res.Err() != nil {
+			log.Fatal("FindOneAndReplace err", res.Err().Error())
+		}
 		return newPost, nil
 	} else {
 		return nil, fmt.Errorf("id assertion failed")
@@ -137,9 +143,52 @@ func (repo *PostsMongoRepository) Delete(id string) (bool, error) {
 }
 
 func (repo *PostsMongoRepository) GetByUser(user_login string) ([]*Post, error) {
-	cur, err := repo.DB.Find(*repo.ctx, bson.M{"Author": bson.M{"User": user_login}})
+
+	filter := bson.M{
+		"author": bson.M{
+			"username": user_login,
+			"id": bson.M{
+				"$regex": primitive.Regex{
+					Pattern: "[0-9a-z]+",
+					Options: "i",
+				},
+			},
+		},
+	}
+
+	cur, err := repo.DB.Find(*repo.ctx, filter)
 	if err != nil {
-		fmt.Println("GETTING ALL POSTS BY USER", err)
+		fmt.Println("ERR GETTING ALL POSTS BY USER", err)
+		return nil, err
+	}
+
+	PostList := make([]*Post, 0, 5)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	defer cur.Close(ctx)
+	for cur.Next(ctx) {
+		newPost := &Post{}
+		err := cur.Decode(newPost)
+		if err != nil {
+			fmt.Println("Error decoding in getting all posts by user")
+			return nil, fmt.Errorf("error decoding in getting all posts by user")
+		}
+		PostList = append(PostList, newPost)
+	}
+	if err := cur.Err(); err != nil {
+		log.Fatal(err)
+	}
+	return PostList, nil
+}
+
+func (repo *PostsMongoRepository) GetAllByCategory(category string) ([]*Post, error) {
+
+	filter := bson.M{"category": category}
+
+	cur, err := repo.DB.Find(*repo.ctx, filter)
+	if err != nil {
+		fmt.Println("ERR GetAllByCategory", err)
 		return nil, err
 	}
 
@@ -163,106 +212,158 @@ func (repo *PostsMongoRepository) GetByUser(user_login string) ([]*Post, error) 
 	return PostList, nil
 }
 
-func (repo *PostsMongoRepository) GetAllByCategory(category string) ([]*Post, error) {
-	// result := make([]*Post, 0, 10)
-	// for _, item := range repo.data {
-	// 	if item.Category == category {
-	// 		result = append(result, item)
-	// 	}
-	// }
-
-	// if len(result) == 0 {
-	// 	return nil, ErrNoPost
-	// }
-
-	// return result, nil
-	return nil, nil
-
-}
-
 func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post, error) {
-	// for indexPost, item := range repo.data {
-	// 	if item.ID == post_id {
-	// 		for _, voter := range item.VotesList {
-	// 			if voter.User == username && voter.Vote == 1 {
-	// 				return nil, ErrNoCanDo
-	// 			}
-	// 			if voter.User == username && voter.Vote == -1 {
-	// 				repo.data[indexPost], _ = repo.UnVote(post_id, username)
-	// 				repo.data[indexPost], _ = repo.UpVote(post_id, username)
-	// 				return repo.data[indexPost], nil
-	// 			}
-	// 		}
 
-	// 		item.Score += 1
+	result := &Post{}
+	objectId, errGettingObject := primitive.ObjectIDFromHex(post_id)
+	if errGettingObject != nil {
+		log.Println("Error getting object from id:", post_id)
+		return nil, errGettingObject
+	}
 
-	// 		item.VotesList = append(item.VotesList, VoteStruct{username, 1})
-	// 		item.UpvotePercentage = percetageCount(item.VotesList)
+	filter := bson.M{"_id": objectId}
+	err := repo.DB.FindOne(*repo.ctx, filter).Decode(result)
+	if err == mongo.ErrNoDocuments {
+		fmt.Println("record does not exist")
+		return nil, ErrNoPost
+	} else if err != nil {
+		log.Fatal(err)
+	}
 
-	// 		return item, nil
-	// 	}
-	// }
-	// return nil, ErrNoPost
-	return nil, nil
+	for _, voter := range result.VotesList {
+		if voter.User == username && voter.Vote == 1 {
+			return nil, ErrNoCanDo
+		}
+		if voter.User == username && voter.Vote == -1 {
+			_, _ = repo.UnVote(post_id, username)
+			result, _ = repo.UpVote(post_id, username)
+			// res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
+			// if res.Err() == mongo.ErrNoDocuments {
+			// 	fmt.Println("record does not exist")
+			// 	return nil, ErrNoPost
+			// } else if res.Err() != nil {
+			// 	log.Fatal(err)
+			// }
+			return result, nil
+		}
+	}
 
+	result.Score++
+	result.VotesList = append(result.VotesList, VoteStruct{username, 1})
+	result.UpvotePercentage = percetageCount(result.VotesList)
+
+	res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
+	if res.Err() == mongo.ErrNoDocuments {
+		fmt.Println("record does not exist")
+		return nil, ErrNoPost
+	} else if res.Err() != nil {
+		log.Fatal(err)
+	}
+
+	return result, nil
 }
 
 func (repo *PostsMongoRepository) DownVote(post_id string, username string) (*Post, error) {
-	// for indexPost, item := range repo.data {
-	// 	if item.ID == post_id {
-	// 		for _, voter := range item.VotesList {
-	// 			if voter.User == username && voter.Vote == -1 {
-	// 				return nil, ErrNoCanDo
-	// 			}
-	// 			if voter.User == username && voter.Vote == 1 {
-	// 				repo.data[indexPost], _ = repo.UnVote(post_id, username)
-	// 				repo.data[indexPost], _ = repo.DownVote(post_id, username)
-	// 				return repo.data[indexPost], nil
-	// 			}
-	// 		}
-	// 		item.Score -= 1
 
-	// 		item.VotesList = append(item.VotesList, VoteStruct{username, -1})
-	// 		item.UpvotePercentage = percetageCount(item.VotesList)
+	result := &Post{}
+	objectId, errGettingObject := primitive.ObjectIDFromHex(post_id)
+	if errGettingObject != nil {
+		log.Println("Error getting object from id:", post_id)
+		return nil, errGettingObject
+	}
 
-	// 		return item, nil
-	// 	}
-	// }
-	// return nil, ErrNoPost
-	return nil, nil
+	filter := bson.M{"_id": objectId}
+	err := repo.DB.FindOne(*repo.ctx, filter).Decode(result)
+	if err == mongo.ErrNoDocuments {
+		fmt.Println("record does not exist")
+		return nil, ErrNoPost
+	} else if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, voter := range result.VotesList {
+		if voter.User == username && voter.Vote == -1 {
+			return nil, ErrNoCanDo
+		}
+		if voter.User == username && voter.Vote == 1 {
+			_, _ = repo.UnVote(post_id, username)
+			result, _ = repo.DownVote(post_id, username)
+			// res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
+			// if res.Err() == mongo.ErrNoDocuments {
+			// 	fmt.Println("record does not exist")
+			// 	return nil, ErrNoPost
+			// } else if res.Err() != nil {
+			// 	log.Fatal(err)
+			// }
+			return result, nil
+		}
+	}
+
+	result.Score--
+	result.VotesList = append(result.VotesList, VoteStruct{username, -1})
+	result.UpvotePercentage = percetageCount(result.VotesList)
+
+	res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
+	if res.Err() == mongo.ErrNoDocuments {
+		fmt.Println("record does not exist")
+		return nil, ErrNoPost
+	} else if res.Err() != nil {
+		log.Fatal(err)
+	}
+
+	return result, nil
 
 }
 
 func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post, error) {
-	// 	postIndexToRemove := -1
-	// 	voteIndexToRemove := -1
-	// LOOP:
-	// 	for postIdx, item := range repo.data {
-	// 		if item.ID == post_id {
-	// 			postIndexToRemove = postIdx
-	// 			for idx, voter := range item.VotesList {
-	// 				if voter.User == username {
-	// 					voteIndexToRemove = idx
 
-	// 					item.Score -= voter.Vote
+	result := &Post{}
+	objectId, errGettingObject := primitive.ObjectIDFromHex(post_id)
+	if errGettingObject != nil {
+		log.Println("Error getting object from id:", post_id)
+		return nil, errGettingObject
+	}
 
-	// 					break LOOP
-	// 				}
-	// 			}
-	// 		}
-	// 	}
+	filter := bson.M{"_id": objectId}
+	err := repo.DB.FindOne(*repo.ctx, filter).Decode(result)
+	if err == mongo.ErrNoDocuments {
+		fmt.Println("record does not exist")
+		return nil, ErrNoPost
+	} else if err != nil {
+		log.Fatal("FindOne err", err.Error())
+	}
 
-	// 	repo.mu.Lock()
-	// 	if voteIndexToRemove < len(repo.data[postIndexToRemove].VotesList)-1 {
-	// 		copy(repo.data[postIndexToRemove].VotesList[voteIndexToRemove:], repo.data[postIndexToRemove].VotesList[voteIndexToRemove+1:])
-	// 	}
-	// 	repo.data[postIndexToRemove].VotesList[len(repo.data[postIndexToRemove].VotesList)-1] = VoteStruct{}
-	// 	repo.data[postIndexToRemove].VotesList = repo.data[postIndexToRemove].VotesList[:len(repo.data[postIndexToRemove].VotesList)-1]
-	// 	repo.mu.Unlock()
+	vote := 0
+	indexDel := -1
+	for idx, voter := range result.VotesList {
+		if voter.User == username {
+			vote = voter.Vote
+			indexDel = idx
+			break
+		}
+	}
+	if indexDel == -1 {
+		return nil, ErrNoPost
+	}
 
-	// 	repo.data[postIndexToRemove].UpvotePercentage = percetageCount(repo.data[postIndexToRemove].VotesList)
+	result.Score -= vote
 
-	// return repo.data[postIndexToRemove], nil
-	return nil, nil
+	if indexDel < len(result.VotesList)-1 {
+		copy(result.VotesList[indexDel:], result.VotesList[indexDel+1:])
+	}
+	result.VotesList[len(result.VotesList)-1] = VoteStruct{}
+	result.VotesList = result.VotesList[:len(result.VotesList)-1]
+
+	result.UpvotePercentage = percetageCount(result.VotesList)
+	result.IdMongo = objectId
+	res := repo.DB.FindOneAndReplace(*repo.ctx, filter, result)
+	if res.Err() == mongo.ErrNoDocuments {
+		fmt.Println("record does not exist")
+		return nil, ErrNoPost
+	} else if res.Err() != nil {
+		log.Fatal("FindOneAndReplace err", res.Err().Error())
+	}
+
+	return result, nil
 
 }

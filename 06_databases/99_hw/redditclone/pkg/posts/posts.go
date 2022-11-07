@@ -3,10 +3,13 @@ package posts
 import (
 	"redditclone/pkg/comments"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Post struct {
-	ID               string              `json:"id" bson:"_id,omitempty"`
+	IdMongo          primitive.ObjectID  `json:"-" bson:"_id,omitempty"`
+	ID               string              `json:"id"`
 	Title            string              `json:"title"`
 	Score            int                 `json:"score"`
 	VotesList        []VoteStruct        `json:"votes"`
