@@ -18,15 +18,16 @@ func TestAuthorize(t *testing.T) {
 	}
 	defer db.Close()
 
+	// good query
 	var login string = "admin"
 	var pass string = "asdfasdf"
-
-	// good query
 	rows := sqlmock.NewRows([]string{"id", "login", "password"})
-	expect := []*user.User{{
-		ID:       "0",
-		Login:    "admin",
-		Password: "asdfasdf"},
+	expect := []*user.User{
+		{
+			ID:       "0",
+			Login:    "admin",
+			Password: "asdfasdf",
+		},
 	}
 	for _, item := range expect {
 		rows = rows.AddRow(item.ID, item.Login, item.Password)
@@ -54,35 +55,42 @@ func TestAuthorize(t *testing.T) {
 		return
 	}
 
-	// noUser error
-	mock.
-		ExpectQuery("SELECT id, login, password FROM items WHERE").
-		WithArgs(login).
-		WillReturnError(user.ErrNoUser)
-
-	_, err = repo.Authorize(login, pass)
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
-		return
-	}
-	if err == nil {
-		t.Errorf("expected error, got nil")
-		return
-	}
-
 	// wrong password error
+	row := sqlmock.NewRows([]string{"id", "login", "password"})
+	row = row.AddRow("0", "admin", "asdfasdf")
+
 	mock.
 		ExpectQuery("SELECT id, login, password FROM items WHERE").
 		WithArgs(login).
-		WillReturnError(user.ErrBadPass)
+		WillReturnRows(row)
 
-	_, err = repo.Authorize(login, pass)
+	_, err = repo.Authorize(login, "wrongpassword")
+	fmt.Println("getting", err)
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
 		return
 	}
 	if err == nil {
 		t.Errorf("expected error, got nil")
+		return
+	}
+
+	// noUser error
+	login = "admin111111"
+	pass = "asdfasdf"
+	blankRows := sqlmock.NewRows([]string{"id", "login", "password"})
+	mock.
+		ExpectQuery("SELECT id, login, password FROM items WHERE").
+		WithArgs(login).
+		WillReturnRows(blankRows)
+
+	_, err = repo.Authorize(login, pass)
+	if err == nil {
+		t.Errorf("expected error, got nil")
+		return
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
 		return
 	}
 
