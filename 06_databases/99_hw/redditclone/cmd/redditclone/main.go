@@ -22,12 +22,13 @@ func init() {
 
 func main() {
 
-	sm := session.NewSessionsManager()
+	sm := session.NewSessionManager()
 	logger := log.WithFields(log.Fields{})
 
 	userRepo := user.NewMysqlRepo()
 	postsRepo := posts.NewMongoRepository()
 	commentsRepo := comments.NewMemoryRepo()
+	defer postsRepo.Cancel()
 
 	userHandler := &handlers.UserHandler{
 		UserRepo: userRepo,

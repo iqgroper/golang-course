@@ -15,7 +15,7 @@ import (
 type UserHandler struct {
 	Logger   *logrus.Entry
 	UserRepo user.UserRepo
-	Sessions *session.SessionsManager
+	Sessions *session.SessionsRedisManager
 }
 
 func getNameAndPass(r *http.Request) (*user.NewUser, error) {

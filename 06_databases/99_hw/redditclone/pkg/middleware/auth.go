@@ -13,7 +13,7 @@ var (
 	}
 )
 
-func Auth(sm *session.SessionsManager, next http.Handler) http.Handler {
+func Auth(sm *session.SessionsRedisManager, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sess, err := sm.Check(r)
 		_, canbeWithouthSess := noSessUrls[r.URL.Path]

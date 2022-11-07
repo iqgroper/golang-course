@@ -17,7 +17,7 @@ import (
 type PostsMongoRepository struct {
 	DB     *mongo.Collection
 	ctx    *context.Context
-	cancel context.CancelFunc
+	Cancel context.CancelFunc
 }
 
 func NewMongoRepository() *PostsMongoRepository {
@@ -38,7 +38,7 @@ func NewMongoRepository() *PostsMongoRepository {
 	}
 
 	collection := client.Database("coursera").Collection("posts")
-	return &PostsMongoRepository{DB: collection, ctx: &ctx, cancel: cancel}
+	return &PostsMongoRepository{DB: collection, ctx: &ctx, Cancel: cancel}
 }
 
 func (repo *PostsMongoRepository) GetAll() ([]*Post, error) {
