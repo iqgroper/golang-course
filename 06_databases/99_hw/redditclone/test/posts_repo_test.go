@@ -60,34 +60,34 @@ func TestGetAllPosts(t *testing.T) {
 		}
 
 		first := mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-			{"_id", expectedPosts[0].IdMongo},
-			{"ID", expectedPosts[0].ID},
-			{"Title", expectedPosts[0].Title},
-			{"Score", expectedPosts[0].Score},
-			{"VotesList", expectedPosts[0].VotesList},
-			{"Category", expectedPosts[0].Category},
-			{"Comments", expectedPosts[0].Comments},
-			{"CreatedDTTM", expectedPosts[0].CreatedDTTM},
-			{"Text", expectedPosts[0].Text},
-			{"Type", expectedPosts[0].Type},
-			{"UpvotePercentage", expectedPosts[0].UpvotePercentage},
-			{"Views", expectedPosts[0].Views},
-			{"Author", expectedPosts[0].Author},
+			{Key: "_id", Value: expectedPosts[0].IdMongo},
+			{Key: "ID", Value: expectedPosts[0].ID},
+			{Key: "Title", Value: expectedPosts[0].Title},
+			{Key: "Score", Value: expectedPosts[0].Score},
+			{Key: "VotesList", Value: expectedPosts[0].VotesList},
+			{Key: "Category", Value: expectedPosts[0].Category},
+			{Key: "Comments", Value: expectedPosts[0].Comments},
+			{Key: "CreatedDTTM", Value: expectedPosts[0].CreatedDTTM},
+			{Key: "Text", Value: expectedPosts[0].Text},
+			{Key: "Type", Value: expectedPosts[0].Type},
+			{Key: "UpvotePercentage", Value: expectedPosts[0].UpvotePercentage},
+			{Key: "Views", Value: expectedPosts[0].Views},
+			{Key: "Author", Value: expectedPosts[0].Author},
 		})
 		second := mtest.CreateCursorResponse(1, "foo.bar", mtest.NextBatch, bson.D{
-			{"_id", expectedPosts[1].IdMongo},
-			{"ID", expectedPosts[1].ID},
-			{"Title", expectedPosts[1].Title},
-			{"Score", expectedPosts[1].Score},
-			{"VotesList", expectedPosts[1].VotesList},
-			{"Category", expectedPosts[1].Category},
-			{"Comments", expectedPosts[1].Comments},
-			{"CreatedDTTM", expectedPosts[1].CreatedDTTM},
-			{"Text", expectedPosts[1].Text},
-			{"Type", expectedPosts[1].Type},
-			{"UpvotePercentage", expectedPosts[1].UpvotePercentage},
-			{"Views", expectedPosts[1].Views},
-			{"Author", expectedPosts[1].Author},
+			{Key: "_id", Value: expectedPosts[1].IdMongo},
+			{Key: "ID", Value: expectedPosts[1].ID},
+			{Key: "Title", Value: expectedPosts[1].Title},
+			{Key: "Score", Value: expectedPosts[1].Score},
+			{Key: "VotesList", Value: expectedPosts[1].VotesList},
+			{Key: "Category", Value: expectedPosts[1].Category},
+			{Key: "Comments", Value: expectedPosts[1].Comments},
+			{Key: "CreatedDTTM", Value: expectedPosts[1].CreatedDTTM},
+			{Key: "Text", Value: expectedPosts[1].Text},
+			{Key: "Type", Value: expectedPosts[1].Type},
+			{Key: "UpvotePercentage", Value: expectedPosts[1].UpvotePercentage},
+			{Key: "Views", Value: expectedPosts[1].Views},
+			{Key: "Author", Value: expectedPosts[1].Author},
 		})
 		killCursors := mtest.CreateCursorResponse(0, "foo.bar", mtest.NextBatch)
 		mt.AddMockResponses(first, second, killCursors)
@@ -105,7 +105,7 @@ func TestGetAllPosts(t *testing.T) {
 			Cancel: cancel,
 		}
 
-		mt.AddMockResponses(bson.D{{"ok", 0}})
+		mt.AddMockResponses(bson.D{{Key: "ok", Value: 0}})
 
 		foundPosts, err := postsRepo.GetAll()
 		require.NotNil(t, err)
@@ -270,19 +270,19 @@ func TestGetAllPostsByCategory(t *testing.T) {
 			{Key: "Author", Value: expectedPosts[0].Author},
 		})
 		second := mtest.CreateCursorResponse(1, "foo.bar", mtest.NextBatch, bson.D{
-			{"_id", expectedPosts[1].IdMongo},
-			{"ID", expectedPosts[1].ID},
-			{"Title", expectedPosts[1].Title},
-			{"Score", expectedPosts[1].Score},
-			{"VotesList", expectedPosts[1].VotesList},
-			{"Category", expectedPosts[1].Category},
-			{"Comments", expectedPosts[1].Comments},
-			{"CreatedDTTM", expectedPosts[1].CreatedDTTM},
-			{"Text", expectedPosts[1].Text},
-			{"Type", expectedPosts[1].Type},
-			{"UpvotePercentage", expectedPosts[1].UpvotePercentage},
-			{"Views", expectedPosts[1].Views},
-			{"Author", expectedPosts[1].Author},
+			{Key: "_id", Value: expectedPosts[1].IdMongo},
+			{Key: "ID", Value: expectedPosts[1].ID},
+			{Key: "Title", Value: expectedPosts[1].Title},
+			{Key: "Score", Value: expectedPosts[1].Score},
+			{Key: "VotesList", Value: expectedPosts[1].VotesList},
+			{Key: "Category", Value: expectedPosts[1].Category},
+			{Key: "Comments", Value: expectedPosts[1].Comments},
+			{Key: "CreatedDTTM", Value: expectedPosts[1].CreatedDTTM},
+			{Key: "Text", Value: expectedPosts[1].Text},
+			{Key: "Type", Value: expectedPosts[1].Type},
+			{Key: "UpvotePercentage", Value: expectedPosts[1].UpvotePercentage},
+			{Key: "Views", Value: expectedPosts[1].Views},
+			{Key: "Author", Value: expectedPosts[1].Author},
 		})
 		killCursors := mtest.CreateCursorResponse(0, "foo.bar", mtest.NextBatch)
 		mt.AddMockResponses(first, second, killCursors)
@@ -300,7 +300,7 @@ func TestGetAllPostsByCategory(t *testing.T) {
 			Cancel: cancel,
 		}
 
-		mt.AddMockResponses(bson.D{{"ok", 0}})
+		mt.AddMockResponses(bson.D{{Key: "ok", Value: 0}})
 
 		foundPosts, err := postsRepo.GetAllByCategory("funny")
 		require.NotNil(t, err)
@@ -354,34 +354,34 @@ func TestGetPostsByUser(t *testing.T) {
 		}
 
 		first := mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-			{"_id", expectedPosts[0].IdMongo},
-			{"ID", expectedPosts[0].ID},
-			{"Title", expectedPosts[0].Title},
-			{"Score", expectedPosts[0].Score},
-			{"VotesList", expectedPosts[0].VotesList},
-			{"Category", expectedPosts[0].Category},
-			{"Comments", expectedPosts[0].Comments},
-			{"CreatedDTTM", expectedPosts[0].CreatedDTTM},
-			{"Text", expectedPosts[0].Text},
-			{"Type", expectedPosts[0].Type},
-			{"UpvotePercentage", expectedPosts[0].UpvotePercentage},
-			{"Views", expectedPosts[0].Views},
-			{"Author", expectedPosts[0].Author},
+			{Key: "_id", Value: expectedPosts[0].IdMongo},
+			{Key: "ID", Value: expectedPosts[0].ID},
+			{Key: "Title", Value: expectedPosts[0].Title},
+			{Key: "Score", Value: expectedPosts[0].Score},
+			{Key: "VotesList", Value: expectedPosts[0].VotesList},
+			{Key: "Category", Value: expectedPosts[0].Category},
+			{Key: "Comments", Value: expectedPosts[0].Comments},
+			{Key: "CreatedDTTM", Value: expectedPosts[0].CreatedDTTM},
+			{Key: "Text", Value: expectedPosts[0].Text},
+			{Key: "Type", Value: expectedPosts[0].Type},
+			{Key: "UpvotePercentage", Value: expectedPosts[0].UpvotePercentage},
+			{Key: "Views", Value: expectedPosts[0].Views},
+			{Key: "Author", Value: expectedPosts[0].Author},
 		})
 		second := mtest.CreateCursorResponse(1, "foo.bar", mtest.NextBatch, bson.D{
-			{"_id", expectedPosts[1].IdMongo},
-			{"ID", expectedPosts[1].ID},
-			{"Title", expectedPosts[1].Title},
-			{"Score", expectedPosts[1].Score},
-			{"VotesList", expectedPosts[1].VotesList},
-			{"Category", expectedPosts[1].Category},
-			{"Comments", expectedPosts[1].Comments},
-			{"CreatedDTTM", expectedPosts[1].CreatedDTTM},
-			{"Text", expectedPosts[1].Text},
-			{"Type", expectedPosts[1].Type},
-			{"UpvotePercentage", expectedPosts[1].UpvotePercentage},
-			{"Views", expectedPosts[1].Views},
-			{"Author", expectedPosts[1].Author},
+			{Key: "_id", Value: expectedPosts[1].IdMongo},
+			{Key: "ID", Value: expectedPosts[1].ID},
+			{Key: "Title", Value: expectedPosts[1].Title},
+			{Key: "Score", Value: expectedPosts[1].Score},
+			{Key: "VotesList", Value: expectedPosts[1].VotesList},
+			{Key: "Category", Value: expectedPosts[1].Category},
+			{Key: "Comments", Value: expectedPosts[1].Comments},
+			{Key: "CreatedDTTM", Value: expectedPosts[1].CreatedDTTM},
+			{Key: "Text", Value: expectedPosts[1].Text},
+			{Key: "Type", Value: expectedPosts[1].Type},
+			{Key: "UpvotePercentage", Value: expectedPosts[1].UpvotePercentage},
+			{Key: "Views", Value: expectedPosts[1].Views},
+			{Key: "Author", Value: expectedPosts[1].Author},
 		})
 		killCursors := mtest.CreateCursorResponse(0, "foo.bar", mtest.NextBatch)
 		mt.AddMockResponses(first, second, killCursors)
@@ -399,7 +399,7 @@ func TestGetPostsByUser(t *testing.T) {
 			Cancel: cancel,
 		}
 
-		mt.AddMockResponses(bson.D{{"ok", 0}})
+		mt.AddMockResponses(bson.D{{Key: "ok", Value: 0}})
 
 		foundPosts, err := postsRepo.GetByUser("login")
 		require.NotNil(t, err)
@@ -439,19 +439,19 @@ func TestGetPostByID(t *testing.T) {
 		}
 
 		mt.AddMockResponses(mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-			{"_id", expectedPost.IdMongo},
-			{"ID", expectedPost.ID},
-			{"Title", expectedPost.Title},
-			{"Score", expectedPost.Score},
-			{"VotesList", expectedPost.VotesList},
-			{"Category", expectedPost.Category},
-			{"Comments", expectedPost.Comments},
-			{"CreatedDTTM", expectedPost.CreatedDTTM},
-			{"Text", expectedPost.Text},
-			{"Type", expectedPost.Type},
-			{"UpvotePercentage", expectedPost.UpvotePercentage},
-			{"Views", expectedPost.Views},
-			{"Author", expectedPost.Author},
+			{Key: "_id", Value: expectedPost.IdMongo},
+			{Key: "ID", Value: expectedPost.ID},
+			{Key: "Title", Value: expectedPost.Title},
+			{Key: "Score", Value: expectedPost.Score},
+			{Key: "VotesList", Value: expectedPost.VotesList},
+			{Key: "Category", Value: expectedPost.Category},
+			{Key: "Comments", Value: expectedPost.Comments},
+			{Key: "CreatedDTTM", Value: expectedPost.CreatedDTTM},
+			{Key: "Text", Value: expectedPost.Text},
+			{Key: "Type", Value: expectedPost.Type},
+			{Key: "UpvotePercentage", Value: expectedPost.UpvotePercentage},
+			{Key: "Views", Value: expectedPost.Views},
+			{Key: "Author", Value: expectedPost.Author},
 		}))
 
 		foundPost, err := postsRepo.GetByID("636a4200d60d8731dede9fbc")
@@ -488,7 +488,7 @@ func TestDeletePost(t *testing.T) {
 			Cancel: cancel,
 		}
 
-		mt.AddMockResponses(bson.D{{"ok", 1}, {"acknowledged", true}, {"n", 1}})
+		mt.AddMockResponses(bson.D{{Key: "ok", Value: 1}, {Key: "acknowledged", Value: true}, {Key: "n", Value: 1}})
 
 		ok, err := postsRepo.Delete("636a4200d60d8731dede9fbc")
 
@@ -518,7 +518,7 @@ func TestDeletePost(t *testing.T) {
 			Cancel: cancel,
 		}
 
-		mt.AddMockResponses(bson.D{{"ok", 0}, {"acknowledged", true}, {"n", 0}})
+		mt.AddMockResponses(bson.D{{Key: "ok", Value: 0}, {Key: "acknowledged", Value: true}, {Key: "n", Value: 0}})
 
 		ok, err := postsRepo.Delete("636a4200d60d8731dede9fbc")
 		require.NotNil(t, err)
@@ -574,26 +574,26 @@ func TestUpVote(t *testing.T) {
 
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", post.IdMongo},
-				{"ID", post.ID},
-				{"Title", post.Title},
-				{"Score", post.Score},
-				{"VotesList", post.VotesList},
-				{"Category", post.Category},
-				{"Comments", post.Comments},
-				{"CreatedDTTM", post.CreatedDTTM},
-				{"Text", post.Text},
-				{"Type", post.Type},
-				{"UpvotePercentage", post.UpvotePercentage},
-				{"Views", post.Views},
-				{"Author", post.Author}}),
-			primitive.D{{"ok", 1}},
+				{Key: "_id", Value: post.IdMongo},
+				{Key: "ID", Value: post.ID},
+				{Key: "Title", Value: post.Title},
+				{Key: "Score", Value: post.Score},
+				{Key: "VotesList", Value: post.VotesList},
+				{Key: "Category", Value: post.Category},
+				{Key: "Comments", Value: post.Comments},
+				{Key: "CreatedDTTM", Value: post.CreatedDTTM},
+				{Key: "Text", Value: post.Text},
+				{Key: "Type", Value: post.Type},
+				{Key: "UpvotePercentage", Value: post.UpvotePercentage},
+				{Key: "Views", Value: post.Views},
+				{Key: "Author", Value: post.Author}}),
+			primitive.D{{Key: "ok", Value: 1}},
 			primitive.D{
-				{"ok", 1},
-				{"value", bson.D{
-					{"Score", expectedPost.Score},
-					{"UpvotePercentage", expectedPost.UpvotePercentage},
-					{"VotesList", expectedPost.VotesList},
+				{Key: "ok", Value: 1},
+				{Key: "value", Value: bson.D{
+					{Key: "Score", Value: expectedPost.Score},
+					{Key: "UpvotePercentage", Value: expectedPost.UpvotePercentage},
+					{Key: "VotesList", Value: expectedPost.VotesList},
 				}},
 			},
 		)
@@ -675,65 +675,65 @@ func TestUpVote(t *testing.T) {
 
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", post.IdMongo},
-				{"ID", post.ID},
-				{"Title", post.Title},
-				{"Score", post.Score},
-				{"VotesList", post.VotesList},
-				{"Category", post.Category},
-				{"Comments", post.Comments},
-				{"CreatedDTTM", post.CreatedDTTM},
-				{"Text", post.Text},
-				{"Type", post.Type},
-				{"UpvotePercentage", post.UpvotePercentage},
-				{"Views", post.Views},
-				{"Author", post.Author}}),
-			primitive.D{{"ok", 1}},
+				{Key: "_id", Value: post.IdMongo},
+				{Key: "ID", Value: post.ID},
+				{Key: "Title", Value: post.Title},
+				{Key: "Score", Value: post.Score},
+				{Key: "VotesList", Value: post.VotesList},
+				{Key: "Category", Value: post.Category},
+				{Key: "Comments", Value: post.Comments},
+				{Key: "CreatedDTTM", Value: post.CreatedDTTM},
+				{Key: "Text", Value: post.Text},
+				{Key: "Type", Value: post.Type},
+				{Key: "UpvotePercentage", Value: post.UpvotePercentage},
+				{Key: "Views", Value: post.Views},
+				{Key: "Author", Value: post.Author}}),
+			primitive.D{{Key: "ok", Value: 1}},
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", post.IdMongo},
-				{"ID", post.ID},
-				{"Title", post.Title},
-				{"Score", post.Score},
-				{"VotesList", post.VotesList},
-				{"Category", post.Category},
-				{"Comments", post.Comments},
-				{"CreatedDTTM", post.CreatedDTTM},
-				{"Text", post.Text},
-				{"Type", post.Type},
-				{"UpvotePercentage", post.UpvotePercentage},
-				{"Views", post.Views},
-				{"Author", post.Author}},
+				{Key: "_id", Value: post.IdMongo},
+				{Key: "ID", Value: post.ID},
+				{Key: "Title", Value: post.Title},
+				{Key: "Score", Value: post.Score},
+				{Key: "VotesList", Value: post.VotesList},
+				{Key: "Category", Value: post.Category},
+				{Key: "Comments", Value: post.Comments},
+				{Key: "CreatedDTTM", Value: post.CreatedDTTM},
+				{Key: "Text", Value: post.Text},
+				{Key: "Type", Value: post.Type},
+				{Key: "UpvotePercentage", Value: post.UpvotePercentage},
+				{Key: "Views", Value: post.Views},
+				{Key: "Author", Value: post.Author}},
 			),
-			primitive.D{{"ok", 1}},
+			primitive.D{{Key: "ok", Value: 1}},
 			primitive.D{
-				{"ok", 1},
-				{"value", bson.D{
-					{"Score", expectedAfterUnvotePost.Score},
-					{"UpvotePercentage", expectedAfterUnvotePost.UpvotePercentage},
-					{"VotesList", expectedAfterUnvotePost.VotesList},
+				{Key: "ok", Value: 1},
+				{Key: "value", Value: bson.D{
+					{Key: "Score", Value: expectedAfterUnvotePost.Score},
+					{Key: "UpvotePercentage", Value: expectedAfterUnvotePost.UpvotePercentage},
+					{Key: "VotesList", Value: expectedAfterUnvotePost.VotesList},
 				}},
 			},
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", expectedAfterUnvotePost.IdMongo},
-				{"ID", expectedAfterUnvotePost.ID},
-				{"Title", expectedAfterUnvotePost.Title},
-				{"Score", expectedAfterUnvotePost.Score},
-				{"VotesList", expectedAfterUnvotePost.VotesList},
-				{"Category", expectedAfterUnvotePost.Category},
-				{"Comments", expectedAfterUnvotePost.Comments},
-				{"CreatedDTTM", expectedAfterUnvotePost.CreatedDTTM},
-				{"Text", expectedAfterUnvotePost.Text},
-				{"Type", expectedAfterUnvotePost.Type},
-				{"UpvotePercentage", expectedAfterUnvotePost.UpvotePercentage},
-				{"Views", expectedAfterUnvotePost.Views},
-				{"Author", expectedAfterUnvotePost.Author}}),
-			primitive.D{{"ok", 1}},
+				{Key: "_id", Value: expectedAfterUnvotePost.IdMongo},
+				{Key: "ID", Value: expectedAfterUnvotePost.ID},
+				{Key: "Title", Value: expectedAfterUnvotePost.Title},
+				{Key: "Score", Value: expectedAfterUnvotePost.Score},
+				{Key: "VotesList", Value: expectedAfterUnvotePost.VotesList},
+				{Key: "Category", Value: expectedAfterUnvotePost.Category},
+				{Key: "Comments", Value: expectedAfterUnvotePost.Comments},
+				{Key: "CreatedDTTM", Value: expectedAfterUnvotePost.CreatedDTTM},
+				{Key: "Text", Value: expectedAfterUnvotePost.Text},
+				{Key: "Type", Value: expectedAfterUnvotePost.Type},
+				{Key: "UpvotePercentage", Value: expectedAfterUnvotePost.UpvotePercentage},
+				{Key: "Views", Value: expectedAfterUnvotePost.Views},
+				{Key: "Author", Value: expectedAfterUnvotePost.Author}}),
+			primitive.D{{Key: "ok", Value: 1}},
 			primitive.D{
-				{"ok", 1},
-				{"value", bson.D{
-					{"Score", expectedPost.Score},
-					{"UpvotePercentage", expectedPost.UpvotePercentage},
-					{"VotesList", expectedPost.VotesList},
+				{Key: "ok", Value: 1},
+				{Key: "value", Value: bson.D{
+					{Key: "Score", Value: expectedPost.Score},
+					{Key: "UpvotePercentage", Value: expectedPost.UpvotePercentage},
+					{Key: "VotesList", Value: expectedPost.VotesList},
 				}},
 			},
 		)
@@ -771,19 +771,19 @@ func TestUpVote(t *testing.T) {
 
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", post.IdMongo},
-				{"ID", post.ID},
-				{"Title", post.Title},
-				{"Score", post.Score},
-				{"VotesList", post.VotesList},
-				{"Category", post.Category},
-				{"Comments", post.Comments},
-				{"CreatedDTTM", post.CreatedDTTM},
-				{"Text", post.Text},
-				{"Type", post.Type},
-				{"UpvotePercentage", post.UpvotePercentage},
-				{"Views", post.Views},
-				{"Author", post.Author}}),
+				{Key: "_id", Value: post.IdMongo},
+				{Key: "ID", Value: post.ID},
+				{Key: "Title", Value: post.Title},
+				{Key: "Score", Value: post.Score},
+				{Key: "VotesList", Value: post.VotesList},
+				{Key: "Category", Value: post.Category},
+				{Key: "Comments", Value: post.Comments},
+				{Key: "CreatedDTTM", Value: post.CreatedDTTM},
+				{Key: "Text", Value: post.Text},
+				{Key: "Type", Value: post.Type},
+				{Key: "UpvotePercentage", Value: post.UpvotePercentage},
+				{Key: "Views", Value: post.Views},
+				{Key: "Author", Value: post.Author}}),
 			// primitive.D{{"ok", 1}},
 		)
 
@@ -842,26 +842,26 @@ func TestDownVote(t *testing.T) {
 
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", post.IdMongo},
-				{"ID", post.ID},
-				{"Title", post.Title},
-				{"Score", post.Score},
-				{"VotesList", post.VotesList},
-				{"Category", post.Category},
-				{"Comments", post.Comments},
-				{"CreatedDTTM", post.CreatedDTTM},
-				{"Text", post.Text},
-				{"Type", post.Type},
-				{"UpvotePercentage", post.UpvotePercentage},
-				{"Views", post.Views},
-				{"Author", post.Author}}),
-			primitive.D{{"ok", 1}},
+				{Key: "_id", Value: post.IdMongo},
+				{Key: "ID", Value: post.ID},
+				{Key: "Title", Value: post.Title},
+				{Key: "Score", Value: post.Score},
+				{Key: "VotesList", Value: post.VotesList},
+				{Key: "Category", Value: post.Category},
+				{Key: "Comments", Value: post.Comments},
+				{Key: "CreatedDTTM", Value: post.CreatedDTTM},
+				{Key: "Text", Value: post.Text},
+				{Key: "Type", Value: post.Type},
+				{Key: "UpvotePercentage", Value: post.UpvotePercentage},
+				{Key: "Views", Value: post.Views},
+				{Key: "Author", Value: post.Author}}),
+			primitive.D{{Key: "ok", Value: 1}},
 			primitive.D{
-				{"ok", 1},
-				{"value", bson.D{
-					{"Score", expectedPost.Score},
-					{"UpvotePercentage", expectedPost.UpvotePercentage},
-					{"VotesList", expectedPost.VotesList},
+				{Key: "ok", Value: 1},
+				{Key: "value", Value: bson.D{
+					{Key: "Score", Value: expectedPost.Score},
+					{Key: "UpvotePercentage", Value: expectedPost.UpvotePercentage},
+					{Key: "VotesList", Value: expectedPost.VotesList},
 				}},
 			},
 		)
@@ -943,65 +943,65 @@ func TestDownVote(t *testing.T) {
 
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", post.IdMongo},
-				{"ID", post.ID},
-				{"Title", post.Title},
-				{"Score", post.Score},
-				{"VotesList", post.VotesList},
-				{"Category", post.Category},
-				{"Comments", post.Comments},
-				{"CreatedDTTM", post.CreatedDTTM},
-				{"Text", post.Text},
-				{"Type", post.Type},
-				{"UpvotePercentage", post.UpvotePercentage},
-				{"Views", post.Views},
-				{"Author", post.Author}}),
-			primitive.D{{"ok", 1}},
+				{Key: "_id", Value: post.IdMongo},
+				{Key: "ID", Value: post.ID},
+				{Key: "Title", Value: post.Title},
+				{Key: "Score", Value: post.Score},
+				{Key: "VotesList", Value: post.VotesList},
+				{Key: "Category", Value: post.Category},
+				{Key: "Comments", Value: post.Comments},
+				{Key: "CreatedDTTM", Value: post.CreatedDTTM},
+				{Key: "Text", Value: post.Text},
+				{Key: "Type", Value: post.Type},
+				{Key: "UpvotePercentage", Value: post.UpvotePercentage},
+				{Key: "Views", Value: post.Views},
+				{Key: "Author", Value: post.Author}}),
+			primitive.D{{Key: "ok", Value: 1}},
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", post.IdMongo},
-				{"ID", post.ID},
-				{"Title", post.Title},
-				{"Score", post.Score},
-				{"VotesList", post.VotesList},
-				{"Category", post.Category},
-				{"Comments", post.Comments},
-				{"CreatedDTTM", post.CreatedDTTM},
-				{"Text", post.Text},
-				{"Type", post.Type},
-				{"UpvotePercentage", post.UpvotePercentage},
-				{"Views", post.Views},
-				{"Author", post.Author}},
+				{Key: "_id", Value: post.IdMongo},
+				{Key: "ID", Value: post.ID},
+				{Key: "Title", Value: post.Title},
+				{Key: "Score", Value: post.Score},
+				{Key: "VotesList", Value: post.VotesList},
+				{Key: "Category", Value: post.Category},
+				{Key: "Comments", Value: post.Comments},
+				{Key: "CreatedDTTM", Value: post.CreatedDTTM},
+				{Key: "Text", Value: post.Text},
+				{Key: "Type", Value: post.Type},
+				{Key: "UpvotePercentage", Value: post.UpvotePercentage},
+				{Key: "Views", Value: post.Views},
+				{Key: "Author", Value: post.Author}},
 			),
-			primitive.D{{"ok", 1}},
+			primitive.D{{Key: "ok", Value: 1}},
 			primitive.D{
-				{"ok", 1},
-				{"value", bson.D{
-					{"Score", expectedAfterUnvotePost.Score},
-					{"UpvotePercentage", expectedAfterUnvotePost.UpvotePercentage},
-					{"VotesList", expectedAfterUnvotePost.VotesList},
+				{Key: "ok", Value: 1},
+				{Key: "value", Value: bson.D{
+					{Key: "Score", Value: expectedAfterUnvotePost.Score},
+					{Key: "UpvotePercentage", Value: expectedAfterUnvotePost.UpvotePercentage},
+					{Key: "VotesList", Value: expectedAfterUnvotePost.VotesList},
 				}},
 			},
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", expectedAfterUnvotePost.IdMongo},
-				{"ID", expectedAfterUnvotePost.ID},
-				{"Title", expectedAfterUnvotePost.Title},
-				{"Score", expectedAfterUnvotePost.Score},
-				{"VotesList", expectedAfterUnvotePost.VotesList},
-				{"Category", expectedAfterUnvotePost.Category},
-				{"Comments", expectedAfterUnvotePost.Comments},
-				{"CreatedDTTM", expectedAfterUnvotePost.CreatedDTTM},
-				{"Text", expectedAfterUnvotePost.Text},
-				{"Type", expectedAfterUnvotePost.Type},
-				{"UpvotePercentage", expectedAfterUnvotePost.UpvotePercentage},
-				{"Views", expectedAfterUnvotePost.Views},
-				{"Author", expectedAfterUnvotePost.Author}}),
-			primitive.D{{"ok", 1}},
+				{Key: "_id", Value: expectedAfterUnvotePost.IdMongo},
+				{Key: "ID", Value: expectedAfterUnvotePost.ID},
+				{Key: "Title", Value: expectedAfterUnvotePost.Title},
+				{Key: "Score", Value: expectedAfterUnvotePost.Score},
+				{Key: "VotesList", Value: expectedAfterUnvotePost.VotesList},
+				{Key: "Category", Value: expectedAfterUnvotePost.Category},
+				{Key: "Comments", Value: expectedAfterUnvotePost.Comments},
+				{Key: "CreatedDTTM", Value: expectedAfterUnvotePost.CreatedDTTM},
+				{Key: "Text", Value: expectedAfterUnvotePost.Text},
+				{Key: "Type", Value: expectedAfterUnvotePost.Type},
+				{Key: "UpvotePercentage", Value: expectedAfterUnvotePost.UpvotePercentage},
+				{Key: "Views", Value: expectedAfterUnvotePost.Views},
+				{Key: "Author", Value: expectedAfterUnvotePost.Author}}),
+			primitive.D{{Key: "ok", Value: 1}},
 			primitive.D{
-				{"ok", 1},
-				{"value", bson.D{
-					{"Score", expectedPost.Score},
-					{"UpvotePercentage", expectedPost.UpvotePercentage},
-					{"VotesList", expectedPost.VotesList},
+				{Key: "ok", Value: 1},
+				{Key: "value", Value: bson.D{
+					{Key: "Score", Value: expectedPost.Score},
+					{Key: "UpvotePercentage", Value: expectedPost.UpvotePercentage},
+					{Key: "VotesList", Value: expectedPost.VotesList},
 				}},
 			},
 		)
@@ -1039,19 +1039,19 @@ func TestDownVote(t *testing.T) {
 
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", post.IdMongo},
-				{"ID", post.ID},
-				{"Title", post.Title},
-				{"Score", post.Score},
-				{"VotesList", post.VotesList},
-				{"Category", post.Category},
-				{"Comments", post.Comments},
-				{"CreatedDTTM", post.CreatedDTTM},
-				{"Text", post.Text},
-				{"Type", post.Type},
-				{"UpvotePercentage", post.UpvotePercentage},
-				{"Views", post.Views},
-				{"Author", post.Author}}),
+				{Key: "_id", Value: post.IdMongo},
+				{Key: "ID", Value: post.ID},
+				{Key: "Title", Value: post.Title},
+				{Key: "Score", Value: post.Score},
+				{Key: "VotesList", Value: post.VotesList},
+				{Key: "Category", Value: post.Category},
+				{Key: "Comments", Value: post.Comments},
+				{Key: "CreatedDTTM", Value: post.CreatedDTTM},
+				{Key: "Text", Value: post.Text},
+				{Key: "Type", Value: post.Type},
+				{Key: "UpvotePercentage", Value: post.UpvotePercentage},
+				{Key: "Views", Value: post.Views},
+				{Key: "Author", Value: post.Author}}),
 		)
 
 		recievedPost, err := postsRepo.DownVote("636a4200d60d8731dede9fbc", "username")
@@ -1109,26 +1109,26 @@ func TestUnVote(t *testing.T) {
 
 		mt.AddMockResponses(
 			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-				{"_id", post.IdMongo},
-				{"ID", post.ID},
-				{"Title", post.Title},
-				{"Score", post.Score},
-				{"VotesList", post.VotesList},
-				{"Category", post.Category},
-				{"Comments", post.Comments},
-				{"CreatedDTTM", post.CreatedDTTM},
-				{"Text", post.Text},
-				{"Type", post.Type},
-				{"UpvotePercentage", post.UpvotePercentage},
-				{"Views", post.Views},
-				{"Author", post.Author}}),
-			primitive.D{{"ok", 1}},
+				{Key: "_id", Value: post.IdMongo},
+				{Key: "ID", Value: post.ID},
+				{Key: "Title", Value: post.Title},
+				{Key: "Score", Value: post.Score},
+				{Key: "VotesList", Value: post.VotesList},
+				{Key: "Category", Value: post.Category},
+				{Key: "Comments", Value: post.Comments},
+				{Key: "CreatedDTTM", Value: post.CreatedDTTM},
+				{Key: "Text", Value: post.Text},
+				{Key: "Type", Value: post.Type},
+				{Key: "UpvotePercentage", Value: post.UpvotePercentage},
+				{Key: "Views", Value: post.Views},
+				{Key: "Author", Value: post.Author}}),
+			primitive.D{{Key: "ok", Value: 1}},
 			primitive.D{
-				{"ok", 1},
-				{"value", bson.D{
-					{"Score", expectedPost.Score},
-					{"UpvotePercentage", expectedPost.UpvotePercentage},
-					{"VotesList", expectedPost.VotesList},
+				{Key: "ok", Value: 1},
+				{Key: "value", Value: bson.D{
+					{Key: "Score", Value: expectedPost.Score},
+					{Key: "UpvotePercentage", Value: expectedPost.UpvotePercentage},
+					{Key: "VotesList", Value: expectedPost.VotesList},
 				}},
 			},
 		)
