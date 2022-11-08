@@ -256,17 +256,17 @@ func TestGetAllPostsByCategory(t *testing.T) {
 
 		first := mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
 			{Key: "_id", Value: expectedPosts[0].IdMongo},
-			{"ID", expectedPosts[0].ID},
-			{"Title", expectedPosts[0].Title},
-			{"Score", expectedPosts[0].Score},
-			{"VotesList", expectedPosts[0].VotesList},
-			{"Category", expectedPosts[0].Category},
-			{"Comments", expectedPosts[0].Comments},
-			{"CreatedDTTM", expectedPosts[0].CreatedDTTM},
-			{"Text", expectedPosts[0].Text},
-			{"Type", expectedPosts[0].Type},
-			{"UpvotePercentage", expectedPosts[0].UpvotePercentage},
-			{"Views", expectedPosts[0].Views},
+			{Key: "ID", Value: expectedPosts[0].ID},
+			{Key: "Title", Value: expectedPosts[0].Title},
+			{Key: "Score", Value: expectedPosts[0].Score},
+			{Key: "VotesList", Value: expectedPosts[0].VotesList},
+			{Key: "Category", Value: expectedPosts[0].Category},
+			{Key: "Comments", Value: expectedPosts[0].Comments},
+			{Key: "CreatedDTTM", Value: expectedPosts[0].CreatedDTTM},
+			{Key: "Text", Value: expectedPosts[0].Text},
+			{Key: "Type", Value: expectedPosts[0].Type},
+			{Key: "UpvotePercentage", Value: expectedPosts[0].UpvotePercentage},
+			{Key: "Views", Value: expectedPosts[0].Views},
 			{Key: "Author", Value: expectedPosts[0].Author},
 		})
 		second := mtest.CreateCursorResponse(1, "foo.bar", mtest.NextBatch, bson.D{

@@ -37,12 +37,13 @@ func (repo *CommentMongoRepository) getPostByID(id string) (*Post, error) {
 		return nil, errGettingObject
 	}
 	filter := bson.M{"_id": objectId}
+
 	err := repo.DB.FindOne(*repo.Ctx, filter).Decode(&result)
 	if err == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if err != nil {
-		log.Fatal(err)
+		log.Fatal("FindOne", err)
 	}
 
 	return result, nil
