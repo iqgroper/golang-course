@@ -111,13 +111,17 @@ func (repo *PostsMongoRepository) Add(item *NewPost) (*Post, error) {
 	}
 
 	if id, ok := result.InsertedID.(primitive.ObjectID); ok {
-		newPost.ID = id.Hex()
-		res := repo.DB.FindOneAndReplace(*repo.Ctx, bson.M{"_id": id}, newPost)
+		ID := id.Hex()
+		newPost.ID = ID
+		update := bson.M{
+			"$set": bson.M{"ID": ID},
+		}
+		res := repo.DB.FindOneAndUpdate(*repo.Ctx, bson.M{"_id": id}, update)
 		if res.Err() == mongo.ErrNoDocuments {
 			fmt.Println("record does not exist")
 			return nil, ErrNoPost
 		} else if res.Err() != nil {
-			log.Fatal("FindOneAndReplace err", res.Err().Error())
+			log.Fatal("FindOneAndUpdate err", res.Err().Error())
 		}
 		return newPost, nil
 	} else {
@@ -226,7 +230,7 @@ func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if err != nil {
-		log.Fatal(err)
+		log.Fatal("find one err", err)
 	}
 
 	for _, voter := range result.VotesList {
@@ -244,12 +248,20 @@ func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post
 	result.VotesList = append(result.VotesList, VoteStruct{username, 1})
 	result.UpvotePercentage = percetageCount(result.VotesList)
 
-	res := repo.DB.FindOneAndReplace(*repo.Ctx, filter, result)
+	update := bson.M{
+		"$set": bson.M{
+			"Score":            result.Score,
+			"UpvotePercentage": result.UpvotePercentage,
+			"VotesList":        result.VotesList,
+		},
+	}
+	res := repo.DB.FindOneAndUpdate(*repo.Ctx, filter, update)
+
 	if res.Err() == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if res.Err() != nil {
-		log.Fatal(err)
+		log.Fatal(res.Err())
 	}
 
 	return result, nil
@@ -288,12 +300,20 @@ func (repo *PostsMongoRepository) DownVote(post_id string, username string) (*Po
 	result.VotesList = append(result.VotesList, VoteStruct{username, -1})
 	result.UpvotePercentage = percetageCount(result.VotesList)
 
-	res := repo.DB.FindOneAndReplace(*repo.Ctx, filter, result)
+	update := bson.M{
+		"$set": bson.M{
+			"Score":            result.Score,
+			"UpvotePercentage": result.UpvotePercentage,
+			"VotesList":        result.VotesList,
+		},
+	}
+	res := repo.DB.FindOneAndUpdate(*repo.Ctx, filter, update)
+
 	if res.Err() == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if res.Err() != nil {
-		log.Fatal(err)
+		log.Fatal(res.Err())
 	}
 
 	return result, nil
@@ -340,13 +360,22 @@ func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post
 	result.VotesList = result.VotesList[:len(result.VotesList)-1]
 
 	result.UpvotePercentage = percetageCount(result.VotesList)
-	result.IdMongo = objectId
-	res := repo.DB.FindOneAndReplace(*repo.Ctx, filter, result)
+	// result.IdMongo = objectId
+
+	update := bson.M{
+		"$set": bson.M{
+			"Score":            result.Score,
+			"UpvotePercentage": result.UpvotePercentage,
+			"VotesList":        result.VotesList,
+		},
+	}
+	res := repo.DB.FindOneAndUpdate(*repo.Ctx, filter, update)
+
 	if res.Err() == mongo.ErrNoDocuments {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if res.Err() != nil {
-		log.Fatal("FindOneAndReplace err", res.Err().Error())
+		log.Fatal("FindOneAndUpdate err", res.Err().Error())
 	}
 
 	return result, nil
