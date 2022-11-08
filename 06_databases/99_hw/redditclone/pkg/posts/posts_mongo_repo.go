@@ -43,7 +43,7 @@ func NewMongoRepository() *PostsMongoRepository {
 func (repo *PostsMongoRepository) GetAll() ([]*Post, error) {
 	cur, err := repo.DB.Find(*repo.Ctx, bson.D{})
 	if err != nil {
-		fmt.Println("GETTING ALL POSTS", err)
+		fmt.Println("ERROR GETTING ALL POSTS", err)
 		return nil, err
 	}
 
