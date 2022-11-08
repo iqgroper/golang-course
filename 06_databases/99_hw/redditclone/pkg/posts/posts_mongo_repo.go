@@ -81,7 +81,7 @@ func (repo *PostsMongoRepository) GetByID(id string) (*Post, error) {
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if err != nil {
-		log.Fatal(err)
+		log.Println("FindOne", err)
 	}
 
 	return result, nil
@@ -139,7 +139,7 @@ func (repo *PostsMongoRepository) Delete(id string) (bool, error) {
 
 	_, err := repo.DB.DeleteOne(*repo.Ctx, filter)
 	if err != nil {
-		log.Print(err)
+		log.Print("DeleteOne", err)
 		return false, err
 	}
 	return true, nil
@@ -230,7 +230,7 @@ func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if err != nil {
-		log.Fatal("find one err", err)
+		log.Fatal("find one err UpVote", err)
 	}
 
 	for _, voter := range result.VotesList {
@@ -335,7 +335,7 @@ func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if err != nil {
-		log.Fatal("FindOne err", err.Error())
+		log.Fatal("FindOne err UnVote", err.Error())
 	}
 
 	vote := 0
@@ -375,7 +375,7 @@ func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post
 		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if res.Err() != nil {
-		log.Fatal("FindOneAndUpdate err", res.Err().Error())
+		log.Fatal("FindOneAndUpdate err UnVote", res.Err().Error())
 	}
 
 	return result, nil
