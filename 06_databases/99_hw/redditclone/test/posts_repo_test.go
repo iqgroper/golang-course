@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"redditclone/pkg/posts"
+	"redditclone/pkg/user"
 	"testing"
 	"time"
 
@@ -114,34 +115,97 @@ func TestGetAllPosts(t *testing.T) {
 
 func TestAddPost(t *testing.T) {
 
-	// mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	// defer mt.Close()
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-	// ctx, cancel := context.WithCancel(context.Background())
-	// commentsRepo := posts.NewMongoRepo(mt.Coll, &ctx, cancel)
-	// userComment := &user.User{
-	// 	ID:       "0",
-	// 	Login:    "admin",
-	// 	Password: "asdfasdf",
-	// }
-	// comm := &posts.Comment{
-	// 	ID:      "0",
-	// 	Body:    "comment",
-	// 	Created: time.Now().UTC(),
-	// 	Author:  userComment,
-	// 	PostID:  "636a4200d60d8731dede9fbc",
-	// }
+	ctx, cancel := context.WithCancel(context.Background())
 
-	// mt.Run("success", func(mt *mtest.T) {
+	mt.Run("success", func(mt *mtest.T) {
 
-	// 	mt.AddMockResponses(mtest.CreateSuccessResponse())
+		postsRepo := &posts.PostsMongoRepository{
+			DB:     mt.Coll,
+			Ctx:    &ctx,
+			Cancel: cancel,
+		}
 
-	// 	_, err := commentsRepo.Add(comm.PostID, comm.Body, comm.Author)
-	// 	fmt.Println(err)
+		newPost := &posts.NewPost{
+			Type:     "text",
+			Title:    "title1",
+			Text:     "text1",
+			Category: "category1",
+			Author: user.User{
+				ID:       "author.id",
+				Login:    "author.login",
+				Password: "asdfasdf",
+			},
+		}
+		expectedPost := &posts.Post{
+			ID:               "636a96165a1c148d1fcf85f2",
+			Title:            "title1",
+			Score:            1,
+			VotesList:        []posts.VoteStruct{{User: "author.login", Vote: 1}},
+			Category:         "category1",
+			Comments:         make([]*posts.Comment, 0, 10),
+			CreatedDTTM:      time.Date(2022, time.November, 8, 18, 20, 0, 0, time.UTC),
+			Text:             "text1",
+			Type:             "text",
+			UpvotePercentage: 100,
+			Views:            0,
+			Author:           posts.AuthorStruct{Username: "author.login", ID: "author.id"},
+		}
 
-	// 	require.Nil(t, err)
-	// 	require.Equal(t, comm, addedComment)
-	// })
+		mt.AddMockResponses(
+			mtest.CreateSuccessResponse(),
+			bson.D{
+				{Key: "ok", Value: 1},
+				{Key: "value", Value: bson.D{
+					{Key: "ID", Value: "636a4200d60d8731dede9fbc"},
+				}},
+			},
+		)
+
+		recievedPost, err := postsRepo.Add(newPost)
+
+		require.Nil(t, err)
+		require.Equal(t, expectedPost.Author, recievedPost.Author)
+		require.Equal(t, expectedPost.Category, recievedPost.Category)
+		require.Equal(t, expectedPost.Comments, recievedPost.Comments)
+		require.Equal(t, expectedPost.Score, recievedPost.Score)
+		require.Equal(t, expectedPost.Text, recievedPost.Text)
+		require.Equal(t, expectedPost.Title, recievedPost.Title)
+		require.Equal(t, expectedPost.Type, recievedPost.Type)
+		require.Equal(t, expectedPost.URL, recievedPost.URL)
+		require.Equal(t, expectedPost.UpvotePercentage, recievedPost.UpvotePercentage)
+		require.Equal(t, expectedPost.Author.ID, recievedPost.Author.ID)
+		require.Equal(t, expectedPost.Author.Username, recievedPost.Author.Username)
+	})
+
+	mt.Run("err", func(mt *mtest.T) {
+
+		postsRepo := &posts.PostsMongoRepository{
+			DB:     mt.Coll,
+			Ctx:    &ctx,
+			Cancel: cancel,
+		}
+		newPost := &posts.NewPost{
+			Type:     "text",
+			Title:    "title1",
+			Text:     "text1",
+			Category: "category1",
+			Author: user.User{
+				ID:       "author.id",
+				Login:    "author.login",
+				Password: "asdfasdf",
+			},
+		}
+
+		mt.AddMockResponses(bson.D{{Key: "ok", Value: 0}})
+
+		recievedPost, err := postsRepo.Add(newPost)
+
+		require.NotNil(t, err)
+		require.Nil(t, recievedPost)
+	})
 }
 
 func TestGetAllPostsByCategory(t *testing.T) {
@@ -191,7 +255,7 @@ func TestGetAllPostsByCategory(t *testing.T) {
 		}
 
 		first := mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
-			{"_id", expectedPosts[0].IdMongo},
+			{Key: "_id", Value: expectedPosts[0].IdMongo},
 			{"ID", expectedPosts[0].ID},
 			{"Title", expectedPosts[0].Title},
 			{"Score", expectedPosts[0].Score},
@@ -203,7 +267,7 @@ func TestGetAllPostsByCategory(t *testing.T) {
 			{"Type", expectedPosts[0].Type},
 			{"UpvotePercentage", expectedPosts[0].UpvotePercentage},
 			{"Views", expectedPosts[0].Views},
-			{"Author", expectedPosts[0].Author},
+			{Key: "Author", Value: expectedPosts[0].Author},
 		})
 		second := mtest.CreateCursorResponse(1, "foo.bar", mtest.NextBatch, bson.D{
 			{"_id", expectedPosts[1].IdMongo},
@@ -1016,21 +1080,6 @@ func TestUnVote(t *testing.T) {
 			IdMongo:          id,
 			ID:               "636a4200d60d8731dede9fbc",
 			Title:            "title1",
-			Score:            1,
-			VotesList:        []posts.VoteStruct{{User: "author.login", Vote: 1}},
-			Category:         "category1",
-			Comments:         make([]*posts.Comment, 0, 10),
-			CreatedDTTM:      time.Date(2022, time.November, 8, 18, 20, 0, 0, time.UTC),
-			Text:             "text1",
-			Type:             "text",
-			UpvotePercentage: 100,
-			Views:            0,
-			Author:           posts.AuthorStruct{Username: "author.login", ID: "author.id"},
-		}
-		expectedPost := &posts.Post{
-			IdMongo:          id,
-			ID:               "636a4200d60d8731dede9fbc",
-			Title:            "title1",
 			Score:            0,
 			VotesList:        []posts.VoteStruct{{User: "author.login", Vote: 1}, {User: "username", Vote: -1}},
 			Category:         "category1",
@@ -1039,6 +1088,21 @@ func TestUnVote(t *testing.T) {
 			Text:             "text1",
 			Type:             "text",
 			UpvotePercentage: 50,
+			Views:            0,
+			Author:           posts.AuthorStruct{Username: "author.login", ID: "author.id"},
+		}
+		expectedPost := &posts.Post{
+			IdMongo:          id,
+			ID:               "636a4200d60d8731dede9fbc",
+			Title:            "title1",
+			Score:            -1,
+			VotesList:        []posts.VoteStruct{{User: "username", Vote: -1}},
+			Category:         "category1",
+			Comments:         make([]*posts.Comment, 0, 10),
+			CreatedDTTM:      time.Date(2022, time.November, 8, 18, 20, 0, 0, time.UTC),
+			Text:             "text1",
+			Type:             "text",
+			UpvotePercentage: 0,
 			Views:            0,
 			Author:           posts.AuthorStruct{Username: "author.login", ID: "author.id"},
 		}
@@ -1069,7 +1133,7 @@ func TestUnVote(t *testing.T) {
 			},
 		)
 
-		recievedPost, err := postsRepo.DownVote("636a4200d60d8731dede9fbc", "username")
+		recievedPost, err := postsRepo.UnVote("636a4200d60d8731dede9fbc", "author.login")
 
 		require.Nil(t, err)
 		require.Equal(t, expectedPost, recievedPost)
