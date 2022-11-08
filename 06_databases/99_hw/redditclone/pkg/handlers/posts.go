@@ -124,7 +124,6 @@ func (h *PostsHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(body.Comment) == 0 {
-
 		http.Error(w, `{"errors":[{"location":"body","param":"comment","msg":"is required"}]}`, http.StatusUnprocessableEntity)
 		return
 	}

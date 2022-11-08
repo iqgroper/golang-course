@@ -6,28 +6,36 @@ import (
 	"net/http"
 	"redditclone/pkg/user"
 	"strings"
+	"time"
 
-	"github.com/gomodule/redigo/redis"
+	// "github.com/gomodule/redigo/redis"
+	"github.com/go-redis/redis"
 
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
 )
 
 type SessionsRedisManager struct {
-	redisConn redis.Conn
+	RedisConn redis.Cmdable
 }
 
 func NewSessionManager() *SessionsRedisManager {
 
-	conn, err := redis.DialURL("redis://user:@localhost:6379/0")
-	if err != nil {
-		log.Fatalf("cant connect to redis")
+	conn := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	ping := conn.Ping()
+	if ping.Err() != nil {
+		panic(ping.Err())
 	}
 
 	log.Println("Connected to Redis")
 
 	return &SessionsRedisManager{
-		redisConn: conn,
+		RedisConn: conn,
 	}
 }
 
@@ -54,7 +62,7 @@ func (sm *SessionsRedisManager) Check(r *http.Request) (*Session, error) {
 	}
 
 	mkey := "sessions:" + authToken
-	data, err := redis.Bytes(sm.redisConn.Do("GET", mkey))
+	data, err := sm.RedisConn.Get(mkey).Bytes()
 	if err != nil {
 		log.Println("cant get data:", err)
 		return nil, err
@@ -74,12 +82,9 @@ func (sm *SessionsRedisManager) Create(w http.ResponseWriter, user *user.User) (
 
 	dataSerialized, _ := json.Marshal(sess)
 	mkey := "sessions:" + sess.ID
-	result, err := redis.String(sm.redisConn.Do("SET", mkey, dataSerialized, "EX", 86400))
-	if err != nil {
-		log.Println("Error creating session in redis")
-		return nil, err
-	}
-	if result != "OK" {
+	result := sm.RedisConn.Set(mkey, dataSerialized, 24*time.Hour).String()
+
+	if result == "" {
 		return nil, fmt.Errorf("error creating session")
 	}
 
