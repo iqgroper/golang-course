@@ -23,8 +23,8 @@ type Session struct {
 
 func NewSession(user *user.User) *Session {
 
-	iat := time.Now()
-	expires := time.Now().Add(90 * 24 * time.Hour)
+	iat := time.Now().UTC().Round(time.Second)
+	expires := time.Now().Add(90 * 24 * time.Hour).UTC().Round(time.Second)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"exp": expires.Unix(),

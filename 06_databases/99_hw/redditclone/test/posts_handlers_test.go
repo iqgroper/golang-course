@@ -736,18 +736,6 @@ func TestUnVoteHandler(t *testing.T) {
 		User: newUser,
 	}
 
-	// no session err
-	wNS := httptest.NewRecorder()
-	rNoSes := httptest.NewRequest("GET", "/api/posts/", nil)
-
-	service.UnVote(wNS, rNoSes.WithContext(context.WithValue(rNoSes.Context(), "SessionKey", "not a session")))
-
-	respNS := wNS.Result()
-	if respNS.StatusCode != 400 {
-		t.Errorf("wrong status code, got: %d, expected 400", respNS.StatusCode)
-		return
-	}
-
 	//no post id in query
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/api/posts/", nil)
@@ -813,6 +801,110 @@ func TestUnVoteHandler(t *testing.T) {
 		return
 	}
 
+}
+
+func TestErrNoSession(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPostRepo := posts.NewMockPostRepo(ctrl)
+	mockCommentRepo := posts.NewMockCommentRepo(ctrl)
+
+	service := &handlers.PostsHandler{
+		PostsRepo:    mockPostRepo,
+		CommentsRepo: mockCommentRepo,
+		Logger:       log.WithFields(log.Fields{}),
+	}
+
+	// newUser := &user.User{ID: "0", Login: "login", Password: "asdfasdf"}
+
+	// resultPost := &posts.Post{
+	// 	ID:               "0",
+	// 	Title:            "title",
+	// 	Score:            1,
+	// 	VotesList:        []posts.VoteStruct{{User: "author.login", Vote: 1}},
+	// 	Category:         "category",
+	// 	Comments:         make([]*posts.Comment, 0, 10),
+	// 	CreatedDTTM:      time.Now().UTC(),
+	// 	Text:             "text",
+	// 	Type:             "text",
+	// 	UpvotePercentage: 100,
+	// 	Views:            0,
+	// 	Author:           posts.AuthorStruct{Username: "author.login", ID: "author.id"},
+	// }
+
+	//err in un vote
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/post/0/unvote", nil)
+	vars := map[string]string{
+		"post_id": "0",
+	}
+	req = mux.SetURLVars(req, vars)
+
+	service.UnVote(w, req.WithContext(context.WithValue(req.Context(), "SessionKey", "not a session")))
+
+	respNS := w.Result()
+	if respNS.StatusCode != 500 {
+		t.Errorf("wrong status code, got: %d, expected 500", respNS.StatusCode)
+		return
+	}
+
+	//err in down vote
+	req = httptest.NewRequest("GET", "/api/post/0/downvote", nil)
+	vars = map[string]string{
+		"post_id": "0",
+	}
+	req = mux.SetURLVars(req, vars)
+
+	service.DownVote(w, req.WithContext(context.WithValue(req.Context(), "SessionKey", "not a session")))
+
+	respNS = w.Result()
+	if respNS.StatusCode != 500 {
+		t.Errorf("wrong status code, got: %d, expected 500", respNS.StatusCode)
+		return
+	}
+
+	//err in up vote
+	req = httptest.NewRequest("GET", "/api/post/0/upvote", nil)
+	vars = map[string]string{
+		"post_id": "0",
+	}
+	req = mux.SetURLVars(req, vars)
+
+	service.UpVote(w, req.WithContext(context.WithValue(req.Context(), "SessionKey", "not a session")))
+
+	respNS = w.Result()
+	if respNS.StatusCode != 500 {
+		t.Errorf("wrong status code, got: %d, expected 500", respNS.StatusCode)
+		return
+	}
+
+	//err in add comment
+	req = httptest.NewRequest("POST", "/api/post/0", nil)
+	vars = map[string]string{
+		"post_id": "0",
+	}
+	req = mux.SetURLVars(req, vars)
+
+	service.AddComment(w, req.WithContext(context.WithValue(req.Context(), "SessionKey", "not a session")))
+
+	respNS = w.Result()
+	if respNS.StatusCode != 500 {
+		t.Errorf("wrong status code, got: %d, expected 500", respNS.StatusCode)
+		return
+	}
+
+	//err in add post
+	req = httptest.NewRequest("POST", "/api/posts", nil)
+
+	service.AddPost(w, req.WithContext(context.WithValue(req.Context(), "SessionKey", "not a session")))
+
+	respNS = w.Result()
+	if respNS.StatusCode != 500 {
+		t.Errorf("wrong status code, got: %d, expected 500", respNS.StatusCode)
+		return
+	}
 }
 
 func TestDeletePostHandler(t *testing.T) {

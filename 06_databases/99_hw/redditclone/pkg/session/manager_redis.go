@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	// "github.com/gomodule/redigo/redis"
 	"github.com/go-redis/redis"
 
 	"github.com/dgrijalva/jwt-go"
@@ -82,10 +81,12 @@ func (sm *SessionsRedisManager) Create(w http.ResponseWriter, user *user.User) (
 
 	dataSerialized, _ := json.Marshal(sess)
 	mkey := "sessions:" + sess.ID
-	result := sm.RedisConn.Set(mkey, dataSerialized, 24*time.Hour)
+	result := sm.RedisConn.Set(mkey, string(dataSerialized), time.Hour)
 
 	res, err := result.Result()
+
 	if res != "OK" || err != nil {
+		fmt.Println("error creating session, res:", res)
 		return nil, fmt.Errorf("error creating session")
 	}
 

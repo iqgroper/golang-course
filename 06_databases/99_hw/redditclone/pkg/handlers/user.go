@@ -62,7 +62,13 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, _ := h.Sessions.Create(w, userToLogIn)
+	sess, SessErr := h.Sessions.Create(w, userToLogIn)
+	if SessErr != nil {
+		h.Logger.Println("error creating session: ", SessErr.Error())
+		http.Error(w, "Error creating session", http.StatusInternalServerError)
+		return
+	}
+
 	h.Logger.WithFields(logrus.Fields{
 		"user": userToLogIn.Login,
 		"task": "logged in",
@@ -75,7 +81,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	newUser, errGetting := getNameAndPass(r)
 	if errGetting != nil {
-		h.Logger.Println("error in Login:", errGetting.Error())
+		h.Logger.Println("error in Register:", errGetting.Error())
 		http.Error(w, fmt.Sprintf(`Bad Login data format: %s`, errGetting.Error()), http.StatusBadRequest)
 		return
 	}
