@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -347,6 +348,11 @@ func TestDeleteCommentHandler(t *testing.T) {
 	//no comment id in query
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest("DELETE", "/api/posts/0/", nil)
+	varsReq := map[string]string{
+		"post_id": "0",
+	}
+	req = mux.SetURLVars(req, varsReq)
+
 	ctxr = session.ContextWithSession(req.Context(), sess)
 
 	service.DeleteComment(w, req.WithContext(ctxr))
@@ -452,6 +458,434 @@ func TestDeleteCommentHandler(t *testing.T) {
 		t.Errorf("wrong status code, got: %d, expected 400", resp.StatusCode)
 		return
 	}
+}
+
+func TestUpVoteHandler(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPostRepo := posts.NewMockPostRepo(ctrl)
+	mockCommentRepo := posts.NewMockCommentRepo(ctrl)
+
+	service := &handlers.PostsHandler{
+		PostsRepo:    mockPostRepo,
+		CommentsRepo: mockCommentRepo,
+		Logger:       log.WithFields(log.Fields{}),
+	}
+
+	newUser := &user.User{ID: "0", Login: "login", Password: "asdfasdf"}
+
+	resultPost := &posts.Post{
+		ID:               "0",
+		Title:            "title",
+		Score:            2,
+		VotesList:        []posts.VoteStruct{{User: "author.login", Vote: 1}, {User: "login", Vote: 1}},
+		Category:         "category",
+		Comments:         make([]*posts.Comment, 0, 10),
+		CreatedDTTM:      time.Now().UTC(),
+		Text:             "text",
+		Type:             "text",
+		UpvotePercentage: 100,
+		Views:            0,
+		Author:           posts.AuthorStruct{Username: "author.login", ID: "author.id"},
+	}
+
+	sess := &session.Session{
+		ID:   "session id",
+		User: newUser,
+	}
+	//no post id in query
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/posts/", nil)
+	ctxr := session.ContextWithSession(req.Context(), sess)
+
+	service.UpVote(w, req.WithContext(ctxr))
+
+	resp := w.Result()
+	if resp.StatusCode != 400 {
+		t.Errorf("wrong status code, got: %d, expected 400", resp.StatusCode)
+		return
+	}
+
+	//successful upvote
+	mockPostRepo.EXPECT().UpVote("0", "login").Return(resultPost, nil)
+
+	w = httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/api/posts/0/upvote", nil)
+	vars := map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+	ctx := session.ContextWithSession(r.Context(), sess)
+
+	service.UpVote(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 200 {
+		t.Errorf("wrong status code, got: %d, expected 200", resp.StatusCode)
+		return
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+
+	recievedPost := &posts.Post{}
+
+	err := json.Unmarshal(body, recievedPost)
+	if err != nil {
+		t.Errorf("Error unmarshalling resp body: %s", err.Error())
+		return
+	}
+
+	if !reflect.DeepEqual(resultPost, recievedPost) {
+		t.Errorf("Wrong result\nExpected: %v\nRecieved: %v", resultPost, recievedPost)
+		return
+	}
+
+	// no can do err, redirect
+	mockPostRepo.EXPECT().UpVote("0", "login").Return(nil, posts.ErrNoCanDo)
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("GET", "/api/posts/0/upvote", nil)
+	vars = map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+
+	service.UpVote(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 302 {
+		t.Errorf("wrong status code, got: %d, expected 200", resp.StatusCode)
+		return
+	}
+
+	// some err in upvote
+	mockPostRepo.EXPECT().UpVote("0", "login").Return(nil, fmt.Errorf("unknown error in upvote"))
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("GET", "/api/posts/0/upvote", nil)
+	vars = map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+
+	service.UpVote(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 400 {
+		t.Errorf("wrong status code, got: %d, expected 400", resp.StatusCode)
+		return
+	}
+
+}
+
+func TestDownVoteHandler(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPostRepo := posts.NewMockPostRepo(ctrl)
+	mockCommentRepo := posts.NewMockCommentRepo(ctrl)
+
+	service := &handlers.PostsHandler{
+		PostsRepo:    mockPostRepo,
+		CommentsRepo: mockCommentRepo,
+		Logger:       log.WithFields(log.Fields{}),
+	}
+
+	newUser := &user.User{ID: "0", Login: "login", Password: "asdfasdf"}
+
+	resultPost := &posts.Post{
+		ID:               "0",
+		Title:            "title",
+		Score:            0,
+		VotesList:        []posts.VoteStruct{{User: "author.login", Vote: 1}, {User: "login", Vote: -1}},
+		Category:         "category",
+		Comments:         make([]*posts.Comment, 0, 10),
+		CreatedDTTM:      time.Now().UTC(),
+		Text:             "text",
+		Type:             "text",
+		UpvotePercentage: 50,
+		Views:            0,
+		Author:           posts.AuthorStruct{Username: "author.login", ID: "author.id"},
+	}
+
+	sess := &session.Session{
+		ID:   "session id",
+		User: newUser,
+	}
+	//no post id in query
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/posts/", nil)
+	ctxr := session.ContextWithSession(req.Context(), sess)
+
+	service.DownVote(w, req.WithContext(ctxr))
+
+	resp := w.Result()
+	if resp.StatusCode != 400 {
+		t.Errorf("wrong status code, got: %d, expected 400", resp.StatusCode)
+		return
+	}
+
+	//successful DownVote
+	mockPostRepo.EXPECT().DownVote("0", "login").Return(resultPost, nil)
+
+	w = httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/api/posts/0/downvote", nil)
+	vars := map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+	ctx := session.ContextWithSession(r.Context(), sess)
+
+	service.DownVote(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 200 {
+		t.Errorf("wrong status code, got: %d, expected 200", resp.StatusCode)
+		return
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+
+	recievedPost := &posts.Post{}
+
+	err := json.Unmarshal(body, recievedPost)
+	if err != nil {
+		t.Errorf("Error unmarshalling resp body: %s", err.Error())
+		return
+	}
+
+	if !reflect.DeepEqual(resultPost, recievedPost) {
+		t.Errorf("Wrong result\nExpected: %v\nRecieved: %v", resultPost, recievedPost)
+		return
+	}
+
+	// no can do err, redirect
+	mockPostRepo.EXPECT().DownVote("0", "login").Return(nil, posts.ErrNoCanDo)
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("GET", "/api/posts/0/downvote", nil)
+	vars = map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+
+	service.DownVote(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 302 {
+		t.Errorf("wrong status code, got: %d, expected 200", resp.StatusCode)
+		return
+	}
+
+	// some err in DownVote
+	mockPostRepo.EXPECT().DownVote("0", "login").Return(nil, fmt.Errorf("unknown error in DownVote"))
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("GET", "/api/posts/0/downvote", nil)
+	vars = map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+
+	service.DownVote(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 400 {
+		t.Errorf("wrong status code, got: %d, expected 400", resp.StatusCode)
+		return
+	}
+
+}
+
+func TestUnVoteHandler(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPostRepo := posts.NewMockPostRepo(ctrl)
+	mockCommentRepo := posts.NewMockCommentRepo(ctrl)
+
+	service := &handlers.PostsHandler{
+		PostsRepo:    mockPostRepo,
+		CommentsRepo: mockCommentRepo,
+		Logger:       log.WithFields(log.Fields{}),
+	}
+
+	newUser := &user.User{ID: "0", Login: "login", Password: "asdfasdf"}
+
+	resultPost := &posts.Post{
+		ID:               "0",
+		Title:            "title",
+		Score:            1,
+		VotesList:        []posts.VoteStruct{{User: "author.login", Vote: 1}},
+		Category:         "category",
+		Comments:         make([]*posts.Comment, 0, 10),
+		CreatedDTTM:      time.Now().UTC(),
+		Text:             "text",
+		Type:             "text",
+		UpvotePercentage: 100,
+		Views:            0,
+		Author:           posts.AuthorStruct{Username: "author.login", ID: "author.id"},
+	}
+
+	sess := &session.Session{
+		ID:   "session id",
+		User: newUser,
+	}
+
+	// no session err
+	wNS := httptest.NewRecorder()
+	rNoSes := httptest.NewRequest("GET", "/api/posts/", nil)
+
+	service.UnVote(wNS, rNoSes.WithContext(context.WithValue(rNoSes.Context(), "SessionKey", "not a session")))
+
+	respNS := wNS.Result()
+	if respNS.StatusCode != 400 {
+		t.Errorf("wrong status code, got: %d, expected 400", respNS.StatusCode)
+		return
+	}
+
+	//no post id in query
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/posts/", nil)
+	ctxr := session.ContextWithSession(req.Context(), sess)
+
+	service.UnVote(w, req.WithContext(ctxr))
+
+	resp := w.Result()
+	if resp.StatusCode != 400 {
+		t.Errorf("wrong status code, got: %d, expected 400", resp.StatusCode)
+		return
+	}
+
+	//successful unvote
+	mockPostRepo.EXPECT().UnVote("0", "login").Return(resultPost, nil)
+
+	w = httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/api/posts/0/unvote", nil)
+	vars := map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+	ctx := session.ContextWithSession(r.Context(), sess)
+
+	service.UnVote(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 200 {
+		t.Errorf("wrong status code, got: %d, expected 200", resp.StatusCode)
+		return
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+
+	recievedPost := &posts.Post{}
+
+	err := json.Unmarshal(body, recievedPost)
+	if err != nil {
+		t.Errorf("Error unmarshalling resp body: %s", err.Error())
+		return
+	}
+
+	if !reflect.DeepEqual(resultPost, recievedPost) {
+		t.Errorf("Wrong result\nExpected: %v\nRecieved: %v", resultPost, recievedPost)
+		return
+	}
+
+	// some err in Unvote
+	mockPostRepo.EXPECT().UnVote("0", "login").Return(nil, fmt.Errorf("not allowed"))
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("GET", "/api/posts/0/unvote", nil)
+	vars = map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+
+	service.UnVote(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 405 {
+		t.Errorf("wrong status code, got: %d, expected 405", resp.StatusCode)
+		return
+	}
+
+}
+
+func TestDeletePostHandler(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockPostRepo := posts.NewMockPostRepo(ctrl)
+	mockCommentRepo := posts.NewMockCommentRepo(ctrl)
+
+	service := &handlers.PostsHandler{
+		PostsRepo:    mockPostRepo,
+		CommentsRepo: mockCommentRepo,
+		Logger:       log.WithFields(log.Fields{}),
+	}
+
+	newUser := &user.User{ID: "0", Login: "login", Password: "asdfasdf"}
+
+	sess := &session.Session{
+		ID:   "session id",
+		User: newUser,
+	}
+
+	//no post id in query
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("DELETE", "/api/post/", nil)
+	ctxr := session.ContextWithSession(req.Context(), sess)
+
+	service.DeletePost(w, req.WithContext(ctxr))
+
+	resp := w.Result()
+	if resp.StatusCode != 400 {
+		t.Errorf("wrong status code, got: %d, expected 400", resp.StatusCode)
+		return
+	}
+
+	//successful deletPost
+	mockPostRepo.EXPECT().Delete("0").Return(true, nil)
+
+	w = httptest.NewRecorder()
+	r := httptest.NewRequest("DELETE", "/api/post/0", nil)
+	vars := map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+	ctx := session.ContextWithSession(r.Context(), sess)
+
+	service.DeletePost(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 200 {
+		t.Errorf("wrong status code, got: %d, expected 200", resp.StatusCode)
+		return
+	}
+
+	// some err in deletePost
+	mockPostRepo.EXPECT().Delete("0").Return(false, fmt.Errorf("some errr in deletePost"))
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest("DELETE", "/api/post/0", nil)
+	vars = map[string]string{
+		"post_id": "0",
+	}
+	r = mux.SetURLVars(r, vars)
+
+	service.DeletePost(w, r.WithContext(ctx))
+
+	resp = w.Result()
+	if resp.StatusCode != 400 {
+		t.Errorf("wrong status code, got: %d, expected 400", resp.StatusCode)
+		return
+	}
+
 }
 
 func TestGetPostByIDHandler(t *testing.T) {
