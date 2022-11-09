@@ -1,82 +1,67 @@
 package tests
 
-// import (
-// 	"bytes"
-// 	"fmt"
-// 	"html/template"
-// 	"io/ioutil"
-// 	"net/http/httptest"
-// 	"redditclone/pkg/handlers"
-// 	"testing"
+import (
+	"testing"
 
-// 	"crudapp/pkg/items"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/elliotchance/redismock"
+	"github.com/go-redis/redis"
+)
 
-// 	"github.com/golang/mock/gomock"
-// )
+func newTestRedis() *redismock.ClientMock {
+	mr, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
 
-// func TestItemsHandlerList(t *testing.T) {
+	client := redis.NewClient(&redis.Options{
+		Addr: mr.Addr(),
+	})
 
-// 	// мы передаём t сюда, это надо чтобы получить корректное сообщение если тесты не пройдут
-// 	ctrl := gomock.NewController(t)
+	return redismock.NewNiceMock(client)
+}
 
-// 	// Finish сравнит последовательсноть вызовов и выведет ошибку если последовательность другая
-// 	defer ctrl.Finish()
+func TestLoginHandler(t *testing.T) {
 
-// 	st := items.NewMockItemRepo(ctrl)
-// 	service := &handlers.UserHandler{
-// 		UserRepo: st,
-// 	}
+	// ctrl := gomock.NewController(t)
+	// defer ctrl.Finish()
 
-// 	resultItems := []*items.Item{
-// 		{ID: 1, Title: "some item"},
-// 	}
+	// mockUserRepo := user.NewMockUserRepo(ctrl)
+	// sessMock := newTestRedis()
+	// sm := &session.SessionsRedisManager{
+	// 	RedisConn: sessMock,
+	// }
 
-// 	// тут мы записываем последовтаельность вызовов и результат
-// 	st.EXPECT().GetAll().Return(resultItems, nil)
+	// service := &handlers.UserHandler{
+	// 	UserRepo: mockUserRepo,
+	// 	Sessions: sm,
+	// 	Logger:   log.WithFields(log.Fields{}),
+	// }
 
-// 	req := httptest.NewRequest("GET", "/", nil)
-// 	w := httptest.NewRecorder()
+	// newUser := &user.User{
+	// 	ID:       "0",
+	// 	Login:    "asdf",
+	// 	Password: "asdfasdf",
+	// }
 
-// 	service.List(w, req)
+	// firstUser := &user.NewUser{
+	// 	Username: "asdf",
+	// 	Password: "asdfasdf",
+	// }
 
-// 	resp := w.Result()
-// 	body, _ := ioutil.ReadAll(resp.Body)
+	// //successful
+	// sess := session.NewSession(newUser)
+	// dataSerialized, _ := json.Marshal(sess)
+	// mkey := "sessions:" + sess.ID
 
-// 	title := `some item`
-// 	if !bytes.Contains(body, []byte(title)) {
-// 		t.Errorf("no text found")
-// 		return
-// 	}
+	// mockUserRepo.EXPECT().Authorize("asdf", "asdfasdf").Return(newUser, nil)
+	// sessMock.On("Set", mkey, dataSerialized, 24*time.Hour).Return(redis.NewCmdResult("OK", nil))
 
-// 	// GetPhotos error
-// 	// тут мы записываем последовтаельность вызовов и результат
-// 	st.EXPECT().GetAll().Return(nil, fmt.Errorf("no results"))
+	// reqBody, _ := json.Marshal(firstUser)
 
-// 	req = httptest.NewRequest("GET", "/", nil)
-// 	w = httptest.NewRecorder()
+	// w := httptest.NewRecorder()
+	// r := httptest.NewRequest("POST", "/api/posts", bytes.NewReader(reqBody))
 
-// 	service.List(w, req)
+	// service.Login(w, r)
 
-// 	resp = w.Result()
-// 	if resp.StatusCode != 500 {
-// 		t.Errorf("expected resp status 500, got %d", resp.StatusCode)
-// 		return
-// 	}
-
-// 	// template expand error
-// 	service.Tmpl, _ = template.New("tmplError").Parse("{{.NotExist}}")
-
-// 	st.EXPECT().GetAll().Return(resultItems, nil)
-
-// 	req = httptest.NewRequest("GET", "/", nil)
-// 	w = httptest.NewRecorder()
-
-// 	service.List(w, req)
-
-// 	resp = w.Result()
-// 	if resp.StatusCode != 500 {
-// 		t.Errorf("expected resp status 500, got %d", resp.StatusCode)
-// 		return
-// 	}
-
-// }
+}

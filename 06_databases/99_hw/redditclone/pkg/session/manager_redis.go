@@ -82,9 +82,10 @@ func (sm *SessionsRedisManager) Create(w http.ResponseWriter, user *user.User) (
 
 	dataSerialized, _ := json.Marshal(sess)
 	mkey := "sessions:" + sess.ID
-	result := sm.RedisConn.Set(mkey, dataSerialized, 24*time.Hour).String()
+	result := sm.RedisConn.Set(mkey, dataSerialized, 24*time.Hour)
 
-	if result == "" {
+	res, err := result.Result()
+	if res != "OK" || err != nil {
 		return nil, fmt.Errorf("error creating session")
 	}
 
