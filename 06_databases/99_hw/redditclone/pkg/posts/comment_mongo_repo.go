@@ -73,7 +73,6 @@ func (repo *CommentMongoRepository) Add(post_id string, body string, user *user.
 
 	post, err := repo.getPostByID(post_id)
 	if err != nil {
-		log.Println("error getting comments", err.Error())
 		return nil, errors.Wrap(err, "adding comment")
 	}
 
@@ -88,7 +87,6 @@ func (repo *CommentMongoRepository) Add(post_id string, body string, user *user.
 	res := repo.DB.FindOneAndUpdate(*repo.Ctx, bson.M{"_id": id}, update)
 
 	if res.Err() == mongo.ErrNoDocuments {
-		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if res.Err() != nil {
 		log.Fatal("FindOneAndUpdate err", res.Err().Error())
@@ -100,8 +98,8 @@ func (repo *CommentMongoRepository) Add(post_id string, body string, user *user.
 func (repo *CommentMongoRepository) Delete(post_id, comment_id string) (bool, error) {
 	post, err := repo.getPostByID(post_id)
 	if err != nil {
-		log.Println("error deleting a comment", err.Error())
-		return false, err
+		return false, errors.Wrap(err, "deleting comment")
+
 	}
 	comments := post.Comments
 
@@ -130,7 +128,6 @@ func (repo *CommentMongoRepository) Delete(post_id, comment_id string) (bool, er
 	res := repo.DB.FindOneAndUpdate(*repo.Ctx, bson.M{"_id": id}, update)
 
 	if res.Err() == mongo.ErrNoDocuments {
-		fmt.Println("record does not exist")
 		return false, ErrNoPost
 	} else if res.Err() != nil {
 		log.Fatal("FindOneAndUpdate err", res.Err().Error())

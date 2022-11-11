@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -43,8 +44,7 @@ func NewMongoRepository() *PostsMongoRepository {
 func (repo *PostsMongoRepository) GetAll() ([]*Post, error) {
 	cur, err := repo.DB.Find(*repo.Ctx, bson.D{})
 	if err != nil {
-		fmt.Println("ERROR GETTING ALL POSTS", err)
-		return nil, err
+		return nil, errors.Wrap(err, "error getting all posts")
 	}
 
 	PostList := make([]*Post, 0, 5)
@@ -56,8 +56,7 @@ func (repo *PostsMongoRepository) GetAll() ([]*Post, error) {
 		newPost := &Post{}
 		err := cur.Decode(newPost)
 		if err != nil {
-			fmt.Println("Error decoding in GetAllPosts")
-			return nil, fmt.Errorf("error decoding in GetAllPosts")
+			return nil, errors.Wrap(err, "error decoding in GetAllPosts")
 		}
 		PostList = append(PostList, newPost)
 	}
@@ -73,15 +72,14 @@ func (repo *PostsMongoRepository) GetByID(id string) (*Post, error) {
 	objectId, errGettingObject := primitive.ObjectIDFromHex(id)
 	if errGettingObject != nil {
 		log.Println("Error getting object from id:", id)
-		return nil, errGettingObject
+		return nil, errors.Wrap(errGettingObject, "error getting object from id in GetByID Posts")
 	}
 	filter := bson.M{"_id": objectId}
 	err := repo.DB.FindOne(*repo.Ctx, filter).Decode(&result)
 	if err == mongo.ErrNoDocuments {
-		fmt.Println("record does not exist")
-		return nil, ErrNoPost
+		return nil, errors.Wrap(ErrNoPost, "in GetByID post")
 	} else if err != nil {
-		log.Println("FindOne", err)
+		log.Fatal("FindOne", err)
 	}
 
 	return result, nil
@@ -106,8 +104,7 @@ func (repo *PostsMongoRepository) Add(item *NewPost) (*Post, error) {
 
 	result, err := repo.DB.InsertOne(*repo.Ctx, newPost)
 	if err != nil {
-		fmt.Println("ADDING POST", err)
-		return nil, err
+		return nil, errors.Wrap(err, "adding post")
 	}
 
 	if id, ok := result.InsertedID.(primitive.ObjectID); ok {
@@ -118,7 +115,6 @@ func (repo *PostsMongoRepository) Add(item *NewPost) (*Post, error) {
 		}
 		res := repo.DB.FindOneAndUpdate(*repo.Ctx, bson.M{"_id": id}, update)
 		if res.Err() == mongo.ErrNoDocuments {
-			fmt.Println("record does not exist")
 			return nil, ErrNoPost
 		} else if res.Err() != nil {
 			log.Fatal("FindOneAndUpdate err", res.Err().Error())
@@ -133,7 +129,7 @@ func (repo *PostsMongoRepository) Delete(id string) (bool, error) {
 	objectId, errGettingObject := primitive.ObjectIDFromHex(id)
 	if errGettingObject != nil {
 		log.Println("Error getting object from id")
-		return false, errGettingObject
+		return false, errors.Wrap(errGettingObject, "in Delete Post")
 	}
 	filter := bson.M{"_id": objectId}
 
@@ -151,8 +147,7 @@ func (repo *PostsMongoRepository) GetByUser(user_login string) ([]*Post, error) 
 
 	cur, err := repo.DB.Find(*repo.Ctx, filter)
 	if err != nil {
-		fmt.Println("ERR GETTING ALL POSTS BY USER", err)
-		return nil, err
+		return nil, errors.Wrap(err, "GetByUser posts")
 	}
 
 	PostList := make([]*Post, 0, 5)
@@ -164,7 +159,6 @@ func (repo *PostsMongoRepository) GetByUser(user_login string) ([]*Post, error) 
 		newPost := &Post{}
 		err := cur.Decode(newPost)
 		if err != nil {
-			fmt.Println("Error decoding in getting all posts by user")
 			return nil, fmt.Errorf("error decoding in getting all posts by user")
 		}
 		PostList = append(PostList, newPost)
@@ -181,8 +175,7 @@ func (repo *PostsMongoRepository) GetAllByCategory(category string) ([]*Post, er
 
 	cur, err := repo.DB.Find(*repo.Ctx, filter)
 	if err != nil {
-		fmt.Println("ERR GetAllByCategory", err)
-		return nil, err
+		return nil, errors.Wrap(err, "in GetAllByCategory")
 	}
 
 	PostList := make([]*Post, 0, 5)
@@ -194,7 +187,6 @@ func (repo *PostsMongoRepository) GetAllByCategory(category string) ([]*Post, er
 		newPost := &Post{}
 		err := cur.Decode(newPost)
 		if err != nil {
-			fmt.Println("Error decoding in GetAllPosts")
 			return nil, fmt.Errorf("error decoding in GetAllPosts")
 		}
 		PostList = append(PostList, newPost)
@@ -210,14 +202,12 @@ func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post
 	result := &Post{}
 	objectId, errGettingObject := primitive.ObjectIDFromHex(post_id)
 	if errGettingObject != nil {
-		log.Println("Error getting object from id:", post_id)
-		return nil, errGettingObject
+		return nil, errors.Wrap(errGettingObject, "in UpVote")
 	}
 
 	filter := bson.M{"_id": objectId}
 	err := repo.DB.FindOne(*repo.Ctx, filter).Decode(result)
 	if err == mongo.ErrNoDocuments {
-		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if err != nil {
 		log.Fatal("find one err UpVote", err)
@@ -248,7 +238,6 @@ func (repo *PostsMongoRepository) UpVote(post_id string, username string) (*Post
 	res := repo.DB.FindOneAndUpdate(*repo.Ctx, filter, update)
 
 	if res.Err() == mongo.ErrNoDocuments {
-		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if res.Err() != nil {
 		log.Fatal(res.Err())
@@ -263,13 +252,12 @@ func (repo *PostsMongoRepository) DownVote(post_id string, username string) (*Po
 	objectId, errGettingObject := primitive.ObjectIDFromHex(post_id)
 	if errGettingObject != nil {
 		log.Println("Error getting object from id:", post_id)
-		return nil, errGettingObject
+		return nil, errors.Wrap(errGettingObject, "in DownVote")
 	}
 
 	filter := bson.M{"_id": objectId}
 	err := repo.DB.FindOne(*repo.Ctx, filter).Decode(result)
 	if err == mongo.ErrNoDocuments {
-		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if err != nil {
 		log.Fatal(err)
@@ -300,7 +288,6 @@ func (repo *PostsMongoRepository) DownVote(post_id string, username string) (*Po
 	res := repo.DB.FindOneAndUpdate(*repo.Ctx, filter, update)
 
 	if res.Err() == mongo.ErrNoDocuments {
-		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if res.Err() != nil {
 		log.Fatal(res.Err())
@@ -316,13 +303,12 @@ func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post
 	objectId, errGettingObject := primitive.ObjectIDFromHex(post_id)
 	if errGettingObject != nil {
 		log.Println("Error getting object from id:", post_id)
-		return nil, errGettingObject
+		return nil, errors.Wrap(errGettingObject, "in UnVote")
 	}
 
 	filter := bson.M{"_id": objectId}
 	err := repo.DB.FindOne(*repo.Ctx, filter).Decode(result)
 	if err == mongo.ErrNoDocuments {
-		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if err != nil {
 		log.Fatal("FindOne err UnVote", err.Error())
@@ -350,7 +336,6 @@ func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post
 	result.VotesList = result.VotesList[:len(result.VotesList)-1]
 
 	result.UpvotePercentage = percetageCount(result.VotesList)
-	// result.IdMongo = objectId
 
 	update := bson.M{
 		"$set": bson.M{
@@ -362,7 +347,6 @@ func (repo *PostsMongoRepository) UnVote(post_id string, username string) (*Post
 	res := repo.DB.FindOneAndUpdate(*repo.Ctx, filter, update)
 
 	if res.Err() == mongo.ErrNoDocuments {
-		fmt.Println("record does not exist")
 		return nil, ErrNoPost
 	} else if res.Err() != nil {
 		log.Fatal("FindOneAndUpdate err UnVote", res.Err().Error())

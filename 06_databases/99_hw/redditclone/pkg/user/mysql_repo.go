@@ -2,9 +2,9 @@ package user
 
 import (
 	"database/sql"
-	"fmt"
-	"log"
 	"strconv"
+
+	"github.com/pkg/errors"
 )
 
 type UserMysqlRepository struct {
@@ -38,8 +38,7 @@ func (repo *UserMysqlRepository) Authorize(login, pass string) (*User, error) {
 		return nil, ErrNoUser
 	}
 	if err != nil {
-		log.Println("QueryRowError", err)
-		return nil, err
+		return nil, errors.Wrap(err, "QueryRowError")
 	}
 
 	if user.Password != pass {
@@ -56,8 +55,7 @@ func (repo *UserMysqlRepository) Register(login, pass string) (*User, error) {
 		pass,
 	)
 	if err != nil {
-		fmt.Println("QueryRow", err)
-		return nil, err
+		return nil, errors.Wrap(err, "QueryRowError")
 	}
 
 	id, _ := result.LastInsertId()

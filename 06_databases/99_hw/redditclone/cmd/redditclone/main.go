@@ -74,7 +74,7 @@ func main() {
 
 	http.Handle("/api/", siteMux)
 
-	port := ":8080"
+	port := ":8000"
 	log.Printf("Listening on %s", port)
 	errServer := http.ListenAndServe(port, nil)
 	if errServer != nil {

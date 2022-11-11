@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
+	"github.com/pkg/errors"
 
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
@@ -56,21 +57,18 @@ func (sm *SessionsRedisManager) Check(r *http.Request) (*Session, error) {
 	authToken := strings.Split(authTokenStr[0], " ")[1]
 	token, err := jwt.Parse(authToken, hashSecretGetter)
 	if err != nil || !token.Valid {
-		log.Println("Error parsing jwt in Check:", err.Error())
-		return nil, fmt.Errorf("error parsing jwt in Check or token is invalid: %s", err.Error())
+		return nil, fmt.Errorf("error parsing jwt in Check or token is invalid: %w", err)
 	}
 
 	mkey := "sessions:" + authToken
 	data, err := sm.RedisConn.Get(mkey).Bytes()
 	if err != nil {
-		log.Println("cant get data:", err)
-		return nil, err
+		return nil, errors.Wrap(err, "cant get data from Redis in Check")
 	}
 	sess := &Session{}
 	err = json.Unmarshal(data, sess)
 	if err != nil {
-		log.Println("cant unpack session data:", err)
-		return nil, err
+		return nil, errors.Wrap(err, "cant unpack session data in Check")
 	}
 
 	return sess, nil
