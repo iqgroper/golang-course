@@ -147,17 +147,7 @@ func (repo *PostsMongoRepository) Delete(id string) (bool, error) {
 
 func (repo *PostsMongoRepository) GetByUser(user_login string) ([]*Post, error) {
 
-	filter := bson.M{
-		"author": bson.M{
-			"username": user_login,
-			"id": bson.M{
-				"$regex": primitive.Regex{
-					Pattern: "[0-9a-z]+",
-					Options: "i",
-				},
-			},
-		},
-	}
+	filter := bson.M{"author.username": user_login}
 
 	cur, err := repo.DB.Find(*repo.Ctx, filter)
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"redditclone/pkg/user"
-	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	log "github.com/sirupsen/logrus"
@@ -15,20 +14,13 @@ var (
 )
 
 type Session struct {
-	ID      string
-	User    *user.User
-	Iat     time.Time
-	Expires time.Time
+	ID   string
+	User *user.User
 }
 
 func NewSession(user *user.User) *Session {
 
-	iat := time.Now().UTC().Round(time.Second)
-	expires := time.Now().Add(90 * 24 * time.Hour).UTC().Round(time.Second)
-
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"exp": expires.Unix(),
-		"iat": iat.Unix(),
 		"user": map[string]string{
 			"username": user.Login,
 			"id":       user.ID,
@@ -42,10 +34,8 @@ func NewSession(user *user.User) *Session {
 	}
 
 	return &Session{
-		ID:      tokenString,
-		User:    user,
-		Iat:     iat,
-		Expires: expires,
+		ID:   tokenString,
+		User: user,
 	}
 }
 
