@@ -768,8 +768,8 @@ github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-gitlab.com/mailru-go/lectures-2022-1 v0.0.0-20220528100202-5ea48b56b600 h1:dr/Hb34JKEmUGDX0leudA7lGMCT8C70Swelptn2x5mw=
-gitlab.com/mailru-go/lectures-2022-1 v0.0.0-20220528100202-5ea48b56b600/go.mod h1:/ak91oQQlwc2qbJW5CkTMKF9+e33qGw9FvUu7L5IuvY=
+gitlab.com/vk-go/lectures-2022-2 v0.0.0-20220528100202-5ea48b56b600 h1:dr/Hb34JKEmUGDX0leudA7lGMCT8C70Swelptn2x5mw=
+gitlab.com/vk-go/lectures-2022-2 v0.0.0-20220528100202-5ea48b56b600/go.mod h1:/ak91oQQlwc2qbJW5CkTMKF9+e33qGw9FvUu7L5IuvY=
 go.etcd.io/etcd/api/v3 v3.5.2/go.mod h1:5GB2vv4A4AOn3yk7MftYGHkUfGtDHnEraIjym4dYz5A=
 go.etcd.io/etcd/api/v3 v3.5.5/go.mod h1:KFtNaxGDw4Yx/BA4iPPwevUTAuqcsPxzyX8PHydchN8=
 go.etcd.io/etcd/client/pkg/v3 v3.5.2/go.mod h1:IJHfcCEKxYu1Os13ZdwCwIUTUVGYTSAM3YSwc9/Ac1g=

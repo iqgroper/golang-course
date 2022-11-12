@@ -37,7 +37,7 @@ require (
 	github.com/uber/jaeger-lib v2.4.1+incompatible
 	github.com/valyala/fasthttp v1.40.0
 	github.com/ybbus/jsonrpc/v2 v2.1.6
-	gitlab.com/mailru-go/lectures-2022-1 v0.0.0-20220528100202-5ea48b56b600
+	gitlab.com/vk-go/lectures-2022-2 v0.0.0-20220528100202-5ea48b56b600
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
 	golang.org/x/net v0.0.0-20221014081412-f15817d10f9b
