@@ -15,7 +15,7 @@ var (
 	commentsServices = &AddrList{}
 )
 
-// go run flag.go --comments=true --servers=""
+// go run flag.go -comments=true -servers=""
 
 func init() {
 	flag.Var(commentsServices, "servers", "Addresses")

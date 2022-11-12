@@ -63,9 +63,9 @@ func loadPostsHandle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "last_version: %d, db_user: %v\n", consulLastIndex, localCfg["db_user"])
+	fmt.Fprintf(w, "last_version: %d, timeout: %v\n", consulLastIndex, localCfg["timeout"])
 	time.Sleep(10 * time.Second)
-	fmt.Fprintf(w, "last_version: %d, db_user: %v\n", consulLastIndex, localCfg["db_user"])
+	fmt.Fprintf(w, "last_version: %d, timeout: %v\n", consulLastIndex, localCfg["timeout"])
 	fmt.Fprintln(w, "Request done")
 }
 
@@ -97,7 +97,7 @@ func main() {
 
 func runConfigUpdater() {
 	ticker := time.Tick(3 * time.Second)
-	for _ = range ticker {
+	for range ticker {
 		loadConfig()
 	}
 }
