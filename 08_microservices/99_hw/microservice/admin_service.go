@@ -2,8 +2,6 @@ package main
 
 type Admin struct {
 	UnimplementedAdminServer
-	// rpc Logging (Nothing) returns (stream Event) {}
-	// rpc Statistics (StatInterval) returns (stream Stat) {}
 }
 
 func NewAdmin() *Admin {
@@ -11,6 +9,7 @@ func NewAdmin() *Admin {
 }
 
 func (admin *Admin) Logging(nothing *Nothing, outStream Admin_LoggingServer) error {
+
 	return nil
 }
 
