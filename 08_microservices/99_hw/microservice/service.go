@@ -16,38 +16,14 @@ func StartMyMicroservice(ctx context.Context, listenAddr, ACLData string) error 
 	}
 
 	server := grpc.NewServer(
-	// grpc.UnaryInterceptor(authInterceptor),
-	// grpc.InTapHandle(rateLimiter),
+	// grpc.UnaryInterceptor(statistics),
+	// grpc.UnaryInterceptor(logging)
 	)
 
-	// RegisterAdminServer(server, )
 	RegisterBizServer(server, NewBiz())
+	RegisterAdminServer(server, NewAdmin())
 
 	fmt.Println("starting server at", listenAddr)
 	server.Serve(lis)
 	return nil
-}
-
-type Biz struct {
-	UnimplementedBizServer
-	ServiceName string
-}
-
-func NewBiz() *Biz {
-	return &Biz{ServiceName: "Some buisness logic"}
-}
-
-func (biz *Biz) Check(context.Context, *Nothing) (*Nothing, error) {
-	fmt.Println("Biz.Check logic")
-	return nil, nil
-}
-
-func (biz *Biz) Add(context.Context, *Nothing) (*Nothing, error) {
-	fmt.Println("Biz.Add logic")
-	return nil, nil
-}
-
-func (biz *Biz) Test(context.Context, *Nothing) (*Nothing, error) {
-	fmt.Println("Biz.Test logic")
-	return nil, nil
 }
