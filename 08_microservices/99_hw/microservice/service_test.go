@@ -15,7 +15,9 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	status "google.golang.org/grpc/status"
 )
 
 const (
@@ -40,7 +42,7 @@ func wait(amout int) {
 func getGrpcConn(t *testing.T) *grpc.ClientConn {
 	grcpConn, err := grpc.Dial(
 		listenAddr,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		t.Fatalf("cant connect to grpc: %v", err)
@@ -138,7 +140,7 @@ func TestACL(t *testing.T) {
 		_, err = biz.Test(ctx, &Nothing{})
 		if err == nil {
 			t.Fatalf("[%d] ACL fail: expected err on disallowed method", idx)
-		} else if code := grpc.Code(err); code != codes.Unauthenticated {
+		} else if code := status.Code(err); code != codes.Unauthenticated {
 			t.Fatalf("[%d] ACL fail: expected Unauthenticated code, got %v", idx, code)
 		}
 	}
@@ -165,7 +167,7 @@ func TestACL(t *testing.T) {
 	_, err = logger.Recv()
 	if err == nil {
 		t.Fatalf("ACL fail: expected err on disallowed method")
-	} else if code := grpc.Code(err); code != codes.Unauthenticated {
+	} else if code := status.Code(err); code != codes.Unauthenticated {
 		t.Fatalf("ACL fail: expected Unauthenticated code, got %v", code)
 	}
 }
