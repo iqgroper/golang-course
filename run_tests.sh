@@ -17,3 +17,15 @@ then
     cd $root/04_net2/99_hw/taskbot
     golangci-lint -c $root/.golangci.yml run ./...
 fi
+
+if [ -f "$root/06_databases/99_hw/redditclone/go.mod" ]
+then
+    cd $root/06_databases/99_hw/redditclone
+    golangci-lint -c $root/.golangci.yml run ./...
+fi
+
+if [ -f "$root/05_web_app/99_hw/redditclone/go.mod" ]
+then
+    cd $root/05_web_app/99_hw/redditclone
+    golangci-lint -c $root/.golangci.yml run ./...
+fi
