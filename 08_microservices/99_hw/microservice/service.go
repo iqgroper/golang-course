@@ -2,6 +2,7 @@ package main
 
 import (
 	context "context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -11,7 +12,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func LoggingInterceptor(
+func BizLoggingInterceptor(
 	ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
@@ -20,6 +21,7 @@ func LoggingInterceptor(
 	start := time.Now()
 
 	md, _ := metadata.FromIncomingContext(ctx)
+	ctx = context.WithValue(ctx, "method", info.FullMethod)
 
 	reply, err := handler(ctx, req)
 
@@ -35,7 +37,46 @@ func LoggingInterceptor(
 	return reply, err
 }
 
+type ACL struct {
+	Logger    []string
+	Stat      []string
+	Biz_user  []string
+	Biz_admin []string
+}
+
+// type myStream struct {
+// 	grpc.ServerStream
+// 	method string
+// }
+
+// func (s myStream) Context() context.Context {
+// 	return context.WithValue(s.ServerStream.Context(), "method", s.method)
+// }
+
+func AdminLoggingInterceptor(
+	srv interface{},
+	stream grpc.ServerStream,
+	info *grpc.StreamServerInfo,
+	handler grpc.StreamHandler) error {
+
+	log.Println("STREAM INTERCEPTOR")
+
+	// newStream := &myStream{
+	// 	method: info.FullMethod,
+	// }
+
+	handler(srv, stream)
+
+	return nil
+}
+
 func StartMyMicroservice(ctx context.Context, listenAddr, ACLData string) error {
+
+	var acl map[string][]string
+	errorMarshal := json.Unmarshal([]byte(ACLData), &acl)
+	if errorMarshal != nil {
+		return errorMarshal
+	}
 
 	lis, err := net.Listen("tcp", listenAddr)
 	if err != nil {
@@ -43,13 +84,18 @@ func StartMyMicroservice(ctx context.Context, listenAddr, ACLData string) error 
 	}
 
 	server := grpc.NewServer(
-	// grpc.UnaryInterceptor(statistics),
+		grpc.UnaryInterceptor(BizLoggingInterceptor),
+		grpc.StreamInterceptor(AdminLoggingInterceptor),
 	// grpc.StreamServerInterceptor(logging),
 	// grpc.UnaryInterceptor(logging)
 	)
 
-	RegisterBizServer(server, NewBiz())
-	RegisterAdminServer(server, NewAdmin())
+	// logs := &[]Event
+
+	// host := strings.Split(listenAddr, ":")
+	logs := make(chan *Event, 2)
+	RegisterBizServer(server, NewBiz("127.0.0.1:", acl, logs))
+	RegisterAdminServer(server, NewAdmin(acl, logs))
 
 	go func() {
 		fmt.Println("starting server at", listenAddr)
