@@ -13,7 +13,7 @@ type Admin struct {
 	ACL              map[string][]string
 	Logs             chan *Event
 	Stats            chan *RawStat
-	EventsChan       chan *Event
+	EventClientList  []chan *Event
 	StatsChan        chan *Stat
 	LoggingClientCnt int
 	StatClientCnt    int
@@ -27,7 +27,7 @@ func NewAdmin(acl map[string][]string, logs chan *Event) *Admin {
 		Logs:             logs,
 		Stats:            make(chan *RawStat, 2),
 		ACL:              acl,
-		EventsChan:       make(chan *Event, 2),
+		EventClientList:  make([]chan *Event, 0),
 		StatsChan:        make(chan *Stat, 2),
 		StatByMethod:     make([]map[string]uint64, 1),
 		StatByConsumer:   make([]map[string]uint64, 1),
@@ -54,41 +54,45 @@ func (admin *Admin) gettingLogsAndStats() {
 				Method:   event.Method,
 				Consumer: event.Consumer,
 			}
-			// стоит ли делать из этого горутину, ведь он может заблочится на попытке записать
+			// стоит ли делать из этого горутину, ведь он может заблочится на попытке записать?
 			admin.Stats <- stat
 
 			logNumber := admin.LoggingClientCnt
 
 			for i := 0; i < logNumber; i++ {
-				admin.EventsChan <- event
+				admin.EventClientList[i] <- event
 			}
 		}
 	}()
 }
 
-func (admin *Admin) sendNewLoggingClientLogs(ctx context.Context) {
+func (admin *Admin) sendNewLoggingClientLogs(ctx context.Context, clientID int) {
 
 	md, _ := metadata.FromIncomingContext(ctx)
 
-	event := Event{
+	newChan := make(chan *Event, 1)
+	admin.EventClientList = append(admin.EventClientList, newChan)
+
+	event := &Event{
 		Timestamp: time.Now().Unix(),
 		Consumer:  md["consumer"][0],
 		Method:    "/main.Admin/Logging",
 		Host:      "127.0.0.1:",
 	}
-	for i := 0; i < admin.LoggingClientCnt; i++ {
-		admin.EventsChan <- &event
+	for i := 0; i < clientID; i++ {
+		admin.EventClientList[i] <- event
 	}
 }
 
 func (admin *Admin) Logging(nothing *Nothing, outStream Admin_LoggingServer) error {
 
-	ctx := outStream.Context()
-	admin.sendNewLoggingClientLogs(ctx)
-
+	clientID := admin.LoggingClientCnt
 	admin.LoggingClientCnt++
 
-	for event := range admin.EventsChan {
+	ctx := outStream.Context()
+	admin.sendNewLoggingClientLogs(ctx, clientID)
+
+	for event := range admin.EventClientList[clientID] {
 		outStream.Send(event)
 	}
 
