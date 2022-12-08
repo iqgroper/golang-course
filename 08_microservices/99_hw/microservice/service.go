@@ -49,7 +49,7 @@ type ACL struct {
 // 	method string
 // }
 
-// func (s myStream) Context() context.Context {
+// func (s *myStream) Context() context.Context {
 // 	return context.WithValue(s.ServerStream.Context(), "method", s.method)
 // }
 
@@ -58,8 +58,6 @@ func AdminLoggingInterceptor(
 	stream grpc.ServerStream,
 	info *grpc.StreamServerInfo,
 	handler grpc.StreamHandler) error {
-
-	log.Println("STREAM INTERCEPTOR")
 
 	// newStream := &myStream{
 	// 	method: info.FullMethod,
