@@ -21,6 +21,7 @@ type Admin struct {
 	StatByMethod     []map[string]uint64
 	StatByConsumer   []map[string]uint64
 	StatMu           *sync.RWMutex
+	LogListMu        *sync.RWMutex
 	Ctx              context.Context
 }
 
@@ -34,6 +35,7 @@ func NewAdmin(ctx context.Context, acl map[string][]string, logs chan *Event) *A
 		StatByMethod:     make([]map[string]uint64, 1),
 		StatByConsumer:   make([]map[string]uint64, 1),
 		StatMu:           &sync.RWMutex{},
+		LogListMu:        &sync.RWMutex{},
 		LoggingClientCnt: 0,
 		Ctx:              ctx,
 	}
@@ -62,7 +64,9 @@ func (admin *Admin) gettingLogsAndStats() {
 					Consumer: event.Consumer,
 				}
 				// стоит ли делать из этого горутину, ведь он может заблочится на попытке записать?
-				admin.Stats <- stat
+				if admin.StatClientCnt != 0 {
+					admin.Stats <- stat
+				}
 
 				logNumber := admin.LoggingClientCnt
 
@@ -71,21 +75,7 @@ func (admin *Admin) gettingLogsAndStats() {
 				}
 			}
 		}
-		// for event := range admin.Logs {
 
-		// 	stat := &RawStat{
-		// 		Method:   event.Method,
-		// 		Consumer: event.Consumer,
-		// 	}
-		// 	// стоит ли делать из этого горутину, ведь он может заблочится на попытке записать?
-		// 	admin.Stats <- stat
-
-		// 	logNumber := admin.LoggingClientCnt
-
-		// 	for i := 0; i < logNumber; i++ {
-		// 		admin.EventClientList[i] <- event
-		// 	}
-		// }
 	}()
 }
 
@@ -112,12 +102,12 @@ func (admin *Admin) sendNewLoggingClientLogs(ctx context.Context, clientID int) 
 func (admin *Admin) Logging(nothing *Nothing, outStream Admin_LoggingServer) error {
 
 	ctx := outStream.Context()
-	clientID := admin.LoggingClientCnt
 
-	admin.StatMu.Lock()
+	admin.LogListMu.Lock()
+	clientID := admin.LoggingClientCnt
 	admin.LoggingClientCnt++
 	admin.sendNewLoggingClientLogs(ctx, clientID)
-	admin.StatMu.Unlock()
+	admin.LogListMu.Unlock()
 
 	for event := range admin.EventClientList[clientID] {
 		outStream.Send(event)
@@ -152,24 +142,6 @@ func (admin *Admin) fomringStats() {
 			}
 		}
 
-		// for stat := range admin.Stats {
-
-		// 	if admin.StatClientCnt == 0 {
-		// 		continue
-		// 	}
-
-		// 	admin.StatMu.Lock()
-
-		// 	for _, statMap := range admin.StatByMethod {
-		// 		statMap[stat.Method]++
-		// 	}
-
-		// 	for _, statMap := range admin.StatByConsumer {
-		// 		statMap[stat.Consumer]++
-		// 	}
-
-		// 	admin.StatMu.Unlock()
-		// }
 	}()
 }
 
@@ -177,13 +149,13 @@ func (admin *Admin) sendNewStatClientLogs(ctx context.Context) {
 
 	md, _ := metadata.FromIncomingContext(ctx)
 
+	admin.StatMu.Lock()
+
 	if admin.StatClientCnt == 0 {
 		admin.StatByMethod[0] = map[string]uint64{}
 		admin.StatByConsumer[0] = map[string]uint64{}
 		return
 	}
-
-	admin.StatMu.Lock()
 
 	for _, statMap := range admin.StatByMethod {
 		statMap["/main.Admin/Statistics"]++
