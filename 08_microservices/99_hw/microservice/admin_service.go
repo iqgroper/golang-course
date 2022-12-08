@@ -2,6 +2,7 @@ package main
 
 import (
 	context "context"
+	"strings"
 	sync "sync"
 	"time"
 
@@ -20,9 +21,10 @@ type Admin struct {
 	StatByMethod     []map[string]uint64
 	StatByConsumer   []map[string]uint64
 	StatMu           *sync.RWMutex
+	Ctx              context.Context
 }
 
-func NewAdmin(acl map[string][]string, logs chan *Event) *Admin {
+func NewAdmin(ctx context.Context, acl map[string][]string, logs chan *Event) *Admin {
 	newAdmin := &Admin{
 		Logs:             logs,
 		Stats:            make(chan *RawStat, 2),
@@ -33,6 +35,7 @@ func NewAdmin(acl map[string][]string, logs chan *Event) *Admin {
 		StatByConsumer:   make([]map[string]uint64, 1),
 		StatMu:           &sync.RWMutex{},
 		LoggingClientCnt: 0,
+		Ctx:              ctx,
 	}
 
 	newAdmin.fomringStats()
@@ -48,21 +51,41 @@ type RawStat struct {
 
 func (admin *Admin) gettingLogsAndStats() {
 	go func() {
-		for event := range admin.Logs {
+		ctx := admin.Ctx
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event := <-admin.Logs:
+				stat := &RawStat{
+					Method:   event.Method,
+					Consumer: event.Consumer,
+				}
+				// стоит ли делать из этого горутину, ведь он может заблочится на попытке записать?
+				admin.Stats <- stat
 
-			stat := &RawStat{
-				Method:   event.Method,
-				Consumer: event.Consumer,
-			}
-			// стоит ли делать из этого горутину, ведь он может заблочится на попытке записать?
-			admin.Stats <- stat
+				logNumber := admin.LoggingClientCnt
 
-			logNumber := admin.LoggingClientCnt
-
-			for i := 0; i < logNumber; i++ {
-				admin.EventClientList[i] <- event
+				for i := 0; i < logNumber; i++ {
+					admin.EventClientList[i] <- event
+				}
 			}
 		}
+		// for event := range admin.Logs {
+
+		// 	stat := &RawStat{
+		// 		Method:   event.Method,
+		// 		Consumer: event.Consumer,
+		// 	}
+		// 	// стоит ли делать из этого горутину, ведь он может заблочится на попытке записать?
+		// 	admin.Stats <- stat
+
+		// 	logNumber := admin.LoggingClientCnt
+
+		// 	for i := 0; i < logNumber; i++ {
+		// 		admin.EventClientList[i] <- event
+		// 	}
+		// }
 	}()
 }
 
@@ -73,11 +96,13 @@ func (admin *Admin) sendNewLoggingClientLogs(ctx context.Context, clientID int) 
 	newChan := make(chan *Event, 1)
 	admin.EventClientList = append(admin.EventClientList, newChan)
 
+	// host := strings.Split(md[":authority"][0], ":")[0]
+
 	event := &Event{
 		Timestamp: time.Now().Unix(),
 		Consumer:  md["consumer"][0],
 		Method:    "/main.Admin/Logging",
-		Host:      "127.0.0.1:",
+		Host:      md[":authority"][0][:strings.IndexByte(md[":authority"][0], ':')+1],
 	}
 	for i := 0; i < clientID; i++ {
 		admin.EventClientList[i] <- event
@@ -86,11 +111,13 @@ func (admin *Admin) sendNewLoggingClientLogs(ctx context.Context, clientID int) 
 
 func (admin *Admin) Logging(nothing *Nothing, outStream Admin_LoggingServer) error {
 
-	clientID := admin.LoggingClientCnt
-	admin.LoggingClientCnt++
-
 	ctx := outStream.Context()
+	clientID := admin.LoggingClientCnt
+
+	admin.StatMu.Lock()
+	admin.LoggingClientCnt++
 	admin.sendNewLoggingClientLogs(ctx, clientID)
+	admin.StatMu.Unlock()
 
 	for event := range admin.EventClientList[clientID] {
 		outStream.Send(event)
@@ -101,24 +128,48 @@ func (admin *Admin) Logging(nothing *Nothing, outStream Admin_LoggingServer) err
 
 func (admin *Admin) fomringStats() {
 	go func() {
-		for stat := range admin.Stats {
+		ctx := admin.Ctx
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case stat := <-admin.Stats:
+				if admin.StatClientCnt == 0 {
+					continue
+				}
 
-			if admin.StatClientCnt == 0 {
-				continue
+				admin.StatMu.Lock()
+
+				for _, statMap := range admin.StatByMethod {
+					statMap[stat.Method]++
+				}
+
+				for _, statMap := range admin.StatByConsumer {
+					statMap[stat.Consumer]++
+				}
+
+				admin.StatMu.Unlock()
 			}
-
-			admin.StatMu.Lock()
-
-			for _, statMap := range admin.StatByMethod {
-				statMap[stat.Method]++
-			}
-
-			for _, statMap := range admin.StatByConsumer {
-				statMap[stat.Consumer]++
-			}
-
-			admin.StatMu.Unlock()
 		}
+
+		// for stat := range admin.Stats {
+
+		// 	if admin.StatClientCnt == 0 {
+		// 		continue
+		// 	}
+
+		// 	admin.StatMu.Lock()
+
+		// 	for _, statMap := range admin.StatByMethod {
+		// 		statMap[stat.Method]++
+		// 	}
+
+		// 	for _, statMap := range admin.StatByConsumer {
+		// 		statMap[stat.Consumer]++
+		// 	}
+
+		// 	admin.StatMu.Unlock()
+		// }
 	}()
 }
 
@@ -152,9 +203,11 @@ func (admin *Admin) Statistics(interval *StatInterval, outStream Admin_Statistic
 
 	ctx := outStream.Context()
 	admin.sendNewStatClientLogs(ctx)
-
 	statClientId := admin.StatClientCnt
+
+	admin.StatMu.Lock()
 	admin.StatClientCnt++
+	admin.StatMu.Unlock()
 
 	ticker := time.NewTicker(time.Duration(interval.IntervalSeconds) * time.Second)
 	for range ticker.C {

@@ -86,16 +86,13 @@ func StartMyMicroservice(ctx context.Context, listenAddr, ACLData string) error 
 	server := grpc.NewServer(
 		grpc.UnaryInterceptor(BizLoggingInterceptor),
 		grpc.StreamInterceptor(AdminLoggingInterceptor),
-	// grpc.StreamServerInterceptor(logging),
-	// grpc.UnaryInterceptor(logging)
 	)
 
 	// logs := &[]Event
 
-	// host := strings.Split(listenAddr, ":")
 	logs := make(chan *Event, 2)
-	RegisterBizServer(server, NewBiz("127.0.0.1:", acl, logs))
-	RegisterAdminServer(server, NewAdmin(acl, logs))
+	RegisterBizServer(server, NewBiz(acl, logs))
+	RegisterAdminServer(server, NewAdmin(ctx, acl, logs))
 
 	go func() {
 		fmt.Println("starting server at", listenAddr)

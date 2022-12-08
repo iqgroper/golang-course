@@ -20,22 +20,22 @@ type Biz struct {
 	ServiceName string
 }
 
-func NewBiz(host string, acl map[string][]string, logs chan *Event) *Biz {
-	return &Biz{ServiceName: "Some buisness logic", Host: host, ACL: acl, Logs: logs}
+func NewBiz(acl map[string][]string, logs chan *Event) *Biz {
+	return &Biz{ServiceName: "Some buisness logic", ACL: acl, Logs: logs}
 }
 
 func (biz *Biz) sendLogs(ctx context.Context) {
 
 	md, _ := metadata.FromIncomingContext(ctx)
-	fmt.Println("CONSUMER", md["consumer"][0])
+
+	// host := strings.Split(md[":authority"][0], ":")[0]
 
 	if method, ok := ctx.Value("method").(string); ok {
 		event := Event{
 			Timestamp: time.Now().Unix(),
 			Consumer:  md["consumer"][0],
-			// Consumer: "consumer",
-			Method: method,
-			Host:   biz.Host,
+			Method:    method,
+			Host:      md[":authority"][0][:strings.IndexByte(md[":authority"][0], ':')+1],
 		}
 		biz.Logs <- &event
 	}
@@ -52,18 +52,28 @@ func (biz *Biz) checkACL(ctx context.Context) error {
 		return status.Error(codes.Unauthenticated, "not allowed")
 	}
 
-	allowIn := false
-	for _, allowedMethod := range biz.ACL[consumer[0]] {
-		allowIn = true
-		if strings.Contains("*", allowedMethod) {
-			// если содержится звездочка - проверяем вхождение подстроки в урле, иначе можно просто втупую сравнить
-			allowIn = true
-			break
-		}
+	if method, ok := ctx.Value("method").(string); ok {
 
-	}
-	if !allowIn {
-		return status.Error(codes.Unauthenticated, "not allowed")
+		allowIn := false
+		for _, allowedMethod := range biz.ACL[consumer[0]] {
+
+			if strings.Contains(allowedMethod, "*") {
+				if strings.HasPrefix(method, strings.TrimRight(allowedMethod, "*")) {
+					allowIn = true
+					break
+				}
+
+			} else {
+				if method == allowedMethod {
+					allowIn = true
+					break
+				}
+			}
+
+		}
+		if !allowIn {
+			return status.Error(codes.Unauthenticated, "not allowed")
+		}
 	}
 
 	return nil
@@ -75,7 +85,6 @@ func (biz *Biz) Check(ctx context.Context, nothing *Nothing) (*Nothing, error) {
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Println("acl in test", biz.ACL)
 
 	biz.sendLogs(ctx)
 
