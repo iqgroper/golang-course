@@ -154,6 +154,7 @@ func (admin *Admin) sendNewStatClientLogs(ctx context.Context) {
 	if admin.StatClientCnt == 0 {
 		admin.StatByMethod[0] = map[string]uint64{}
 		admin.StatByConsumer[0] = map[string]uint64{}
+		admin.StatMu.Unlock()
 		return
 	}
 
@@ -175,9 +176,9 @@ func (admin *Admin) Statistics(interval *StatInterval, outStream Admin_Statistic
 
 	ctx := outStream.Context()
 	admin.sendNewStatClientLogs(ctx)
-	statClientId := admin.StatClientCnt
 
 	admin.StatMu.Lock()
+	statClientId := admin.StatClientCnt
 	admin.StatClientCnt++
 	admin.StatMu.Unlock()
 
