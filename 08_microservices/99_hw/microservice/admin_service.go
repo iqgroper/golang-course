@@ -2,7 +2,6 @@ package main
 
 import (
 	context "context"
-	"log"
 	sync "sync"
 	"time"
 
@@ -18,8 +17,8 @@ type Admin struct {
 	StatsChan        chan *Stat
 	LoggingClientCnt int
 	StatClientCnt    int
-	StatByMethod     map[string]uint64
-	StatByConsumer   map[string]uint64
+	StatByMethod     []map[string]uint64
+	StatByConsumer   []map[string]uint64
 	StatMu           *sync.RWMutex
 }
 
@@ -30,8 +29,8 @@ func NewAdmin(acl map[string][]string, logs chan *Event) *Admin {
 		ACL:              acl,
 		EventsChan:       make(chan *Event, 2),
 		StatsChan:        make(chan *Stat, 2),
-		StatByMethod:     make(map[string]uint64),
-		StatByConsumer:   make(map[string]uint64),
+		StatByMethod:     make([]map[string]uint64, 1),
+		StatByConsumer:   make([]map[string]uint64, 1),
 		StatMu:           &sync.RWMutex{},
 		LoggingClientCnt: 0,
 	}
@@ -51,19 +50,14 @@ func (admin *Admin) gettingLogsAndStats() {
 	go func() {
 		for event := range admin.Logs {
 
-			statNumber := admin.StatClientCnt
-
 			stat := &RawStat{
 				Method:   event.Method,
 				Consumer: event.Consumer,
 			}
-			for i := 0; i < statNumber; i++ {
-				admin.Stats <- stat
-			}
+			// стоит ли делать из этого горутину, ведь он может заблочится на попытке записать
+			admin.Stats <- stat
 
 			logNumber := admin.LoggingClientCnt
-
-			log.Println("CLIENT NUM", admin.LoggingClientCnt)
 
 			for i := 0; i < logNumber; i++ {
 				admin.EventsChan <- event
@@ -93,55 +87,61 @@ func (admin *Admin) Logging(nothing *Nothing, outStream Admin_LoggingServer) err
 	admin.sendNewLoggingClientLogs(ctx)
 
 	admin.LoggingClientCnt++
-	clientId := admin.LoggingClientCnt
 
 	for event := range admin.EventsChan {
-		log.Printf(" FOR CLIENT NUM %d SENDING EVENT %v", clientId, event)
 		outStream.Send(event)
 	}
 
 	return nil
 }
 
+func (admin *Admin) fomringStats() {
+	go func() {
+		for stat := range admin.Stats {
+
+			if admin.StatClientCnt == 0 {
+				continue
+			}
+
+			admin.StatMu.Lock()
+
+			for _, statMap := range admin.StatByMethod {
+				statMap[stat.Method]++
+			}
+
+			for _, statMap := range admin.StatByConsumer {
+				statMap[stat.Consumer]++
+			}
+
+			admin.StatMu.Unlock()
+		}
+	}()
+}
+
 func (admin *Admin) sendNewStatClientLogs(ctx context.Context) {
 
 	md, _ := metadata.FromIncomingContext(ctx)
 
+	if admin.StatClientCnt == 0 {
+		admin.StatByMethod[0] = map[string]uint64{}
+		admin.StatByConsumer[0] = map[string]uint64{}
+		return
+	}
+
 	admin.StatMu.Lock()
 
-	admin.StatByMethod["/main.Admin/Statistics"]++
-	admin.StatByConsumer[md["consumer"][0]]++
-
-	log.Println("BY CONS", admin.StatByConsumer)
-
-	stat := &Stat{
-		ByMethod:   admin.StatByMethod,
-		ByConsumer: admin.StatByConsumer,
+	for _, statMap := range admin.StatByMethod {
+		statMap["/main.Admin/Statistics"]++
 	}
+
+	for _, statMap := range admin.StatByConsumer {
+		statMap[md["consumer"][0]]++
+	}
+
+	admin.StatByMethod = append(admin.StatByMethod, map[string]uint64{})
+	admin.StatByConsumer = append(admin.StatByConsumer, map[string]uint64{})
 
 	admin.StatMu.Unlock()
-
-	for i := 0; i < admin.StatClientCnt; i++ {
-		admin.StatsChan <- stat
-	}
-}
-
-func (admin *Admin) fomringStats() {
-	go func() {
-		for stat := range admin.Stats {
-			admin.StatMu.Lock()
-
-			admin.StatByMethod[stat.Method]++
-			admin.StatByConsumer[stat.Consumer]++
-			statFinal := &Stat{
-				ByMethod:   admin.StatByMethod,
-				ByConsumer: admin.StatByConsumer,
-			}
-
-			admin.StatMu.Unlock()
-			admin.StatsChan <- statFinal
-		}
-	}()
 }
 
 func (admin *Admin) Statistics(interval *StatInterval, outStream Admin_StatisticsServer) error {
@@ -149,12 +149,23 @@ func (admin *Admin) Statistics(interval *StatInterval, outStream Admin_Statistic
 	ctx := outStream.Context()
 	admin.sendNewStatClientLogs(ctx)
 
+	statClientId := admin.StatClientCnt
 	admin.StatClientCnt++
 
-	ticker := time.NewTicker(time.Duration(interval.IntervalSeconds))
+	ticker := time.NewTicker(time.Duration(interval.IntervalSeconds) * time.Second)
 	for range ticker.C {
-		stat := <-admin.StatsChan
-		outStream.Send(stat)
+		newStat := &Stat{
+			ByMethod:   admin.StatByMethod[statClientId],
+			ByConsumer: admin.StatByConsumer[statClientId],
+		}
+		outStream.Send(newStat)
+
+		for key := range admin.StatByMethod[statClientId] {
+			delete(admin.StatByMethod[statClientId], key)
+		}
+		for key := range admin.StatByConsumer[statClientId] {
+			delete(admin.StatByConsumer[statClientId], key)
+		}
 	}
 
 	return nil
