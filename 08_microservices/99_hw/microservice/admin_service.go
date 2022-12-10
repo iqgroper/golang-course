@@ -14,7 +14,7 @@ type Admin struct {
 	ACL              map[string][]string
 	Logs             chan *Event
 	Stats            chan *RawStat
-	EventClientList  []chan *Event
+	EventsChan       chan *Event
 	StatsChan        chan *Stat
 	LoggingClientCnt int
 	StatClientCnt    int
@@ -30,7 +30,7 @@ func NewAdmin(ctx context.Context, acl map[string][]string, logs chan *Event) *A
 		Logs:             logs,
 		Stats:            make(chan *RawStat, 2),
 		ACL:              acl,
-		EventClientList:  make([]chan *Event, 0),
+		EventsChan:       make(chan *Event, 2),
 		StatsChan:        make(chan *Stat, 2),
 		StatByMethod:     make([]map[string]uint64, 1),
 		StatByConsumer:   make([]map[string]uint64, 1),
@@ -63,15 +63,20 @@ func (admin *Admin) gettingLogsAndStats() {
 					Method:   event.Method,
 					Consumer: event.Consumer,
 				}
+
+				admin.StatMu.RLock()
+				statNumber := admin.StatClientCnt
+				admin.StatMu.RUnlock()
+
 				// стоит ли делать из этого горутину, ведь он может заблочится на попытке записать?
-				if admin.StatClientCnt != 0 {
+				if statNumber != 0 {
 					admin.Stats <- stat
 				}
 
 				logNumber := admin.LoggingClientCnt
 
 				for i := 0; i < logNumber; i++ {
-					admin.EventClientList[i] <- event
+					admin.EventsChan <- event
 				}
 			}
 		}
@@ -83,9 +88,6 @@ func (admin *Admin) sendNewLoggingClientLogs(ctx context.Context, clientID int) 
 
 	md, _ := metadata.FromIncomingContext(ctx)
 
-	newChan := make(chan *Event, 1)
-	admin.EventClientList = append(admin.EventClientList, newChan)
-
 	// host := strings.Split(md[":authority"][0], ":")[0]
 
 	event := &Event{
@@ -95,7 +97,7 @@ func (admin *Admin) sendNewLoggingClientLogs(ctx context.Context, clientID int) 
 		Host:      md[":authority"][0][:strings.IndexByte(md[":authority"][0], ':')+1],
 	}
 	for i := 0; i < clientID; i++ {
-		admin.EventClientList[i] <- event
+		admin.EventsChan <- event
 	}
 }
 
@@ -109,7 +111,7 @@ func (admin *Admin) Logging(nothing *Nothing, outStream Admin_LoggingServer) err
 	admin.sendNewLoggingClientLogs(ctx, clientID)
 	admin.LogListMu.Unlock()
 
-	for event := range admin.EventClientList[clientID] {
+	for event := range admin.EventsChan {
 		outStream.Send(event)
 	}
 
@@ -149,12 +151,12 @@ func (admin *Admin) sendNewStatClientLogs(ctx context.Context) {
 
 	md, _ := metadata.FromIncomingContext(ctx)
 
-	admin.StatMu.Lock()
+	// admin.StatMu.Lock()
 
 	if admin.StatClientCnt == 0 {
 		admin.StatByMethod[0] = map[string]uint64{}
 		admin.StatByConsumer[0] = map[string]uint64{}
-		admin.StatMu.Unlock()
+		// admin.StatMu.Unlock()
 		return
 	}
 
@@ -169,33 +171,41 @@ func (admin *Admin) sendNewStatClientLogs(ctx context.Context) {
 	admin.StatByMethod = append(admin.StatByMethod, map[string]uint64{})
 	admin.StatByConsumer = append(admin.StatByConsumer, map[string]uint64{})
 
-	admin.StatMu.Unlock()
+	// admin.StatMu.Unlock()
 }
 
 func (admin *Admin) Statistics(interval *StatInterval, outStream Admin_StatisticsServer) error {
 
 	ctx := outStream.Context()
-	admin.sendNewStatClientLogs(ctx)
 
 	admin.StatMu.Lock()
+
+	admin.sendNewStatClientLogs(ctx)
+
 	statClientId := admin.StatClientCnt
 	admin.StatClientCnt++
+
 	admin.StatMu.Unlock()
 
 	ticker := time.NewTicker(time.Duration(interval.IntervalSeconds) * time.Second)
 	for range ticker.C {
+		admin.StatMu.Lock()
 		newStat := &Stat{
 			ByMethod:   admin.StatByMethod[statClientId],
 			ByConsumer: admin.StatByConsumer[statClientId],
 		}
+		admin.StatMu.Unlock()
+
 		outStream.Send(newStat)
 
+		admin.StatMu.Lock()
 		for key := range admin.StatByMethod[statClientId] {
 			delete(admin.StatByMethod[statClientId], key)
 		}
 		for key := range admin.StatByConsumer[statClientId] {
 			delete(admin.StatByConsumer[statClientId], key)
 		}
+		admin.StatMu.Unlock()
 	}
 
 	return nil

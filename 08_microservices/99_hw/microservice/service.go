@@ -6,36 +6,13 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time"
+	"strings"
 
 	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	status "google.golang.org/grpc/status"
 )
-
-func BizLoggingInterceptor(
-	ctx context.Context,
-	req interface{},
-	info *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler,
-) (interface{}, error) {
-	start := time.Now()
-
-	md, _ := metadata.FromIncomingContext(ctx)
-	ctx = context.WithValue(ctx, "method", info.FullMethod)
-
-	reply, err := handler(ctx, req)
-
-	fmt.Printf(`--
-	after incoming call=%v
-	req=%#v
-	reply=%#v
-	time=%v
-	md=%v
-	err=%v
-`, info.FullMethod, req, reply, time.Since(start), md, err)
-
-	return reply, err
-}
 
 type ACL struct {
 	Logger    []string
@@ -44,26 +21,74 @@ type ACL struct {
 	Biz_admin []string
 }
 
-// type myStream struct {
-// 	grpc.ServerStream
-// 	method string
-// }
+func bizInterceptor(acl map[string][]string) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
 
-// func (s *myStream) Context() context.Context {
-// 	return context.WithValue(s.ServerStream.Context(), "method", s.method)
-// }
+		err := checkACL(acl, info.FullMethod, ctx)
+		if err != nil {
+			return nil, err
+		}
 
-func AdminLoggingInterceptor(
-	srv interface{},
-	stream grpc.ServerStream,
-	info *grpc.StreamServerInfo,
-	handler grpc.StreamHandler) error {
+		ctx = context.WithValue(ctx, "method", info.FullMethod)
 
-	// newStream := &myStream{
-	// 	method: info.FullMethod,
-	// }
+		reply, err := handler(ctx, req)
 
-	handler(srv, stream)
+		return reply, err
+	}
+}
+
+func adminInterceptor(acl map[string][]string) grpc.StreamServerInterceptor {
+	return func(
+		srv interface{},
+		stream grpc.ServerStream,
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler,
+	) error {
+		err := checkACL(acl, info.FullMethod, stream.Context())
+		if err != nil {
+			return err
+		}
+		handler(srv, stream)
+		return nil
+	}
+}
+
+func checkACL(acl map[string][]string, method string, ctx context.Context) error {
+	md, _ := metadata.FromIncomingContext(ctx)
+	consumer := md["consumer"]
+	if len(consumer) == 0 {
+		return status.Error(codes.Unauthenticated, "no consumer in metadata")
+	}
+
+	if _, ok := acl[consumer[0]]; !ok {
+		return status.Error(codes.Unauthenticated, "not allowed")
+	}
+
+	allowIn := false
+	for _, allowedMethod := range acl[consumer[0]] {
+
+		if strings.Contains(allowedMethod, "*") {
+			if strings.HasPrefix(method, strings.TrimRight(allowedMethod, "*")) {
+				allowIn = true
+				break
+			}
+
+		} else {
+			if method == allowedMethod {
+				allowIn = true
+				break
+			}
+		}
+
+	}
+	if !allowIn {
+		return status.Error(codes.Unauthenticated, "not allowed")
+	}
 
 	return nil
 }
@@ -82,11 +107,9 @@ func StartMyMicroservice(ctx context.Context, listenAddr, ACLData string) error 
 	}
 
 	server := grpc.NewServer(
-		grpc.UnaryInterceptor(BizLoggingInterceptor),
-		grpc.StreamInterceptor(AdminLoggingInterceptor),
+		grpc.UnaryInterceptor(bizInterceptor(acl)),
+		grpc.StreamInterceptor(adminInterceptor(acl)),
 	)
-
-	// logs := &[]Event
 
 	logs := make(chan *Event, 2)
 	RegisterBizServer(server, NewBiz(acl, logs))
