@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -21,7 +22,7 @@ type ACL struct {
 	Biz_admin []string
 }
 
-func bizInterceptor(acl map[string][]string) grpc.UnaryServerInterceptor {
+func bizInterceptor(acl map[string][]string, logs chan *Event) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req interface{},
@@ -34,7 +35,7 @@ func bizInterceptor(acl map[string][]string) grpc.UnaryServerInterceptor {
 			return nil, err
 		}
 
-		ctx = context.WithValue(ctx, "method", info.FullMethod)
+		sendLogs(ctx, logs, info.FullMethod)
 
 		reply, err := handler(ctx, req)
 
@@ -93,6 +94,21 @@ func checkACL(acl map[string][]string, method string, ctx context.Context) error
 	return nil
 }
 
+func sendLogs(ctx context.Context, logs chan *Event, method string) {
+
+	md, _ := metadata.FromIncomingContext(ctx)
+
+	// host := strings.Split(md[":authority"][0], ":")[0]
+
+	event := &Event{
+		Timestamp: time.Now().Unix(),
+		Consumer:  md["consumer"][0],
+		Method:    method,
+		Host:      md[":authority"][0][:strings.IndexByte(md[":authority"][0], ':')+1],
+	}
+	logs <- event
+}
+
 func StartMyMicroservice(ctx context.Context, listenAddr, ACLData string) error {
 
 	var acl map[string][]string
@@ -106,14 +122,14 @@ func StartMyMicroservice(ctx context.Context, listenAddr, ACLData string) error 
 		log.Fatalln("cant listen port", err)
 	}
 
+	logs := make(chan *Event, 2)
 	server := grpc.NewServer(
-		grpc.UnaryInterceptor(bizInterceptor(acl)),
+		grpc.UnaryInterceptor(bizInterceptor(acl, logs)),
 		grpc.StreamInterceptor(adminInterceptor(acl)),
 	)
 
-	logs := make(chan *Event, 2)
-	RegisterBizServer(server, NewBiz(acl, logs))
-	RegisterAdminServer(server, NewAdmin(ctx, acl, logs))
+	RegisterBizServer(server, NewBiz())
+	RegisterAdminServer(server, NewAdmin(ctx, logs))
 
 	go func() {
 		fmt.Println("starting server at", listenAddr)

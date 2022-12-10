@@ -25,11 +25,10 @@ type Admin struct {
 	Ctx              context.Context
 }
 
-func NewAdmin(ctx context.Context, acl map[string][]string, logs chan *Event) *Admin {
+func NewAdmin(ctx context.Context, logs chan *Event) *Admin {
 	newAdmin := &Admin{
 		Logs:             logs,
 		Stats:            make(chan *RawStat, 2),
-		ACL:              acl,
 		EventsChan:       make(chan *Event, 2),
 		StatsChan:        make(chan *Stat, 2),
 		StatByMethod:     make([]map[string]uint64, 1),
