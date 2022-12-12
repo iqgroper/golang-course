@@ -15,7 +15,9 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	status "google.golang.org/grpc/status"
 )
 
 const (
@@ -40,7 +42,7 @@ func wait(amout int) {
 func getGrpcConn(t *testing.T) *grpc.ClientConn {
 	grcpConn, err := grpc.Dial(
 		listenAddr,
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		t.Fatalf("cant connect to grpc: %v", err)
@@ -84,7 +86,7 @@ func TestServerStartStop(t *testing.T) {
 // этим тестом мы проверяем что вы останавливаете все горутины которые у вас были и нет утечек
 // некоторый запас ( goroutinesPerTwoIterations*5 ) остаётся на случай рантайм горутин
 func TestServerLeak(t *testing.T) {
-	//return
+	// return
 	goroutinesStart := runtime.NumGoroutine()
 	TestServerStartStop(t)
 	goroutinesPerTwoIterations := runtime.NumGoroutine() - goroutinesStart
@@ -138,7 +140,7 @@ func TestACL(t *testing.T) {
 		_, err = biz.Test(ctx, &Nothing{})
 		if err == nil {
 			t.Fatalf("[%d] ACL fail: expected err on disallowed method", idx)
-		} else if code := grpc.Code(err); code != codes.Unauthenticated {
+		} else if code := status.Code(err); code != codes.Unauthenticated {
 			t.Fatalf("[%d] ACL fail: expected Unauthenticated code, got %v", idx, code)
 		}
 	}
@@ -159,10 +161,13 @@ func TestACL(t *testing.T) {
 
 	// ACL на методах, которые возвращают поток данных
 	logger, err := adm.Logging(getConsumerCtx("unknown"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = logger.Recv()
 	if err == nil {
 		t.Fatalf("ACL fail: expected err on disallowed method")
-	} else if code := grpc.Code(err); code != codes.Unauthenticated {
+	} else if code := status.Code(err); code != codes.Unauthenticated {
 		t.Fatalf("ACL fail: expected Unauthenticated code, got %v", code)
 	}
 }
@@ -186,9 +191,15 @@ func TestLogging(t *testing.T) {
 	adm := NewAdminClient(conn)
 
 	logStream1, err := adm.Logging(getConsumerCtx("logger"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(1 * time.Millisecond)
 
 	logStream2, err := adm.Logging(getConsumerCtx("logger"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	logData1 := []*Event{}
 	logData2 := []*Event{}
@@ -210,10 +221,10 @@ func TestLogging(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 4; i++ {
-			evt, err := logStream1.Recv()
-			// log.Println("logger 1", evt, err)
-			if err != nil {
-				t.Errorf("unexpected error: %v, awaiting event", err)
+			evt, errTmp := logStream1.Recv()
+			// log.Println("logger 1", evt, errTmp)
+			if errTmp != nil {
+				t.Errorf("unexpected error: %v, awaiting event", errTmp)
 				return
 			}
 			if !strings.HasPrefix(evt.GetHost(), "127.0.0.1:") || evt.GetHost() == listenAddr {
@@ -229,10 +240,10 @@ func TestLogging(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 3; i++ {
-			evt, err := logStream2.Recv()
-			// log.Println("logger 2", evt, err)
-			if err != nil {
-				t.Errorf("unexpected error: %v, awaiting event", err)
+			evt, errTmp := logStream2.Recv()
+			// log.Println("logger 2", evt, errTmp)
+			if errTmp != nil {
+				t.Errorf("unexpected error: %v, awaiting event", errTmp)
 				return
 			}
 			if !strings.HasPrefix(evt.GetHost(), "127.0.0.1:") || evt.GetHost() == listenAddr {
@@ -246,13 +257,22 @@ func TestLogging(t *testing.T) {
 		}
 	}()
 
-	biz.Check(getConsumerCtx("biz_user"), &Nothing{})
+	_, err = biz.Check(getConsumerCtx("biz_user"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(2 * time.Millisecond)
 
-	biz.Check(getConsumerCtx("biz_admin"), &Nothing{})
+	_, err = biz.Check(getConsumerCtx("biz_admin"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(2 * time.Millisecond)
 
-	biz.Test(getConsumerCtx("biz_admin"), &Nothing{})
+	_, err = biz.Test(getConsumerCtx("biz_admin"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(2 * time.Millisecond)
 
 	wg.Wait()
@@ -296,8 +316,14 @@ func TestStat(t *testing.T) {
 	adm := NewAdminClient(conn)
 
 	statStream1, err := adm.Statistics(getConsumerCtx("stat"), &StatInterval{IntervalSeconds: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
 	wait(1)
 	statStream2, err := adm.Statistics(getConsumerCtx("stat"), &StatInterval{IntervalSeconds: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	mu := &sync.Mutex{}
 	stat1 := &Stat{}
@@ -307,14 +333,14 @@ func TestStat(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		for {
-			stat, err := statStream1.Recv()
-			if err != nil && err != io.EOF {
-				// fmt.Printf("unexpected error %v\n", err)
+			stat, errTmp := statStream1.Recv()
+			if errTmp != nil && errTmp != io.EOF {
+				// fmt.Printf("unexpected error %v\n", errTmp)
 				return
-			} else if err == io.EOF {
+			} else if errTmp == io.EOF {
 				break
 			}
-			// log.Println("stat1", stat, err)
+			// log.Println("stat1", stat, errTmp)
 			mu.Lock()
 			// это грязный хак
 			// protobuf добавляет к структуре свои поля, которвые не видны при приведении к строке и при reflect.DeepEqual
@@ -328,14 +354,14 @@ func TestStat(t *testing.T) {
 	}()
 	go func() {
 		for {
-			stat, err := statStream2.Recv()
-			if err != nil && err != io.EOF {
-				// fmt.Printf("unexpected error %v\n", err)
+			stat, errTmp := statStream2.Recv()
+			if errTmp != nil && errTmp != io.EOF {
+				// fmt.Printf("unexpected error %v\n", errTmp)
 				return
-			} else if err == io.EOF {
+			} else if errTmp == io.EOF {
 				break
 			}
-			// log.Println("stat2", stat, err)
+			// log.Println("stat2", stat, errTmp)
 			mu.Lock()
 			// это грязный хак
 			// protobuf добавляет к структуре свои поля, которвые не видны при приведении к строке и при reflect.DeepEqual
@@ -350,9 +376,18 @@ func TestStat(t *testing.T) {
 
 	wait(1)
 
-	biz.Check(getConsumerCtx("biz_user"), &Nothing{})
-	biz.Add(getConsumerCtx("biz_user"), &Nothing{})
-	biz.Test(getConsumerCtx("biz_admin"), &Nothing{})
+	_, err = biz.Check(getConsumerCtx("biz_user"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = biz.Add(getConsumerCtx("biz_user"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = biz.Test(getConsumerCtx("biz_admin"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	wait(200) // 2 sec
 
@@ -376,7 +411,10 @@ func TestStat(t *testing.T) {
 	}
 	mu.Unlock()
 
-	biz.Add(getConsumerCtx("biz_admin"), &Nothing{})
+	_, err = biz.Add(getConsumerCtx("biz_admin"), &Nothing{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	wait(220) // 2+ sec
 
@@ -414,7 +452,7 @@ func TestStat(t *testing.T) {
 	finish()
 }
 
-func __dummyLog() {
+func _dummyLog() {
 	fmt.Println(1)
 	log.Println(1)
 }
